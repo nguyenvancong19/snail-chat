@@ -1,0 +1,12 @@
+{
+  "name": "reeldesk",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": {"node": ">=24 <25"},
+  "scripts": {
+    "build": "npm run build --workspace @reeldesk/api && npm run build --workspace @reeldesk/web",
+    "dev:web": "npm run dev --workspace @reeldesk/web",
+    "dev:api": "npm run dev --workspace @reeldesk/api"
+  }
+}

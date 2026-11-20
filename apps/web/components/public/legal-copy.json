@@ -1,0 +1,162 @@
+{
+  "privacy": [
+    [
+      "Đơn vị chịu trách nhiệm",
+      "Who operates SnailChat",
+      "SnailChat do CÔNG TY TNHH SNAILSOFT (SNAILSOFT COMPANY LIMITED) vận hành. Bạn có thể liên hệ công ty về việc xử lý dữ liệu cá nhân qua email ở cuối trang.",
+      "SnailChat is operated by SNAILSOFT COMPANY LIMITED (CÔNG TY TNHH SNAILSOFT). Contact the company about personal data at the email address below."
+    ],
+    [
+      "Dữ liệu chúng tôi xử lý",
+      "Data we process",
+      "Dữ liệu có thể gồm tên, email, mật khẩu đã băm, thông tin thành viên, mã định danh và quyền kênh, tin nhắn, bình luận, tệp đính kèm, tài liệu Agent, danh mục, thông tin đơn hàng và bản ghi giao dịch. Nhật ký kỹ thuật hỗ trợ vận hành và xử lý lỗi.",
+      "Data may include names, email addresses, hashed passwords, membership details, channel identifiers and permissions, messages, comments, attachments, Agent documents, catalogs, order details and transaction records. Technical logs support troubleshooting and operations."
+    ],
+    [
+      "Mục đích sử dụng",
+      "Why we use data",
+      "Dữ liệu được dùng để xác thực, quản lý quyền, đồng bộ và phản hồi tương tác, vận hành các tính năng Agent, quản lý đơn, đối soát giao dịch và bảo vệ hệ thống.",
+      "We use data for authentication, access management, syncing and responding to interactions, Agent features, orders, payment reconciliation and service security."
+    ],
+    [
+      "Dữ liệu từ Meta",
+      "Data from Meta",
+      "Khi bạn cấp quyền trên Meta, SnailChat nhận thông tin cần thiết cho kênh đã kết nối. Quyền được cấp và loại kênh quyết định dữ liệu có thể đọc hoặc cập nhật, gồm bình luận và tin nhắn Messenger của Facebook Page.",
+      "When you grant access in Meta, SnailChat receives data needed for the connected channel. Granted permissions and channel type determine which data can be read or updated, including comments and Messenger messages for Facebook Pages."
+    ],
+    [
+      "Nhà cung cấp dịch vụ",
+      "Service providers",
+      "Dữ liệu cần thiết có thể được gửi đến Meta để đồng bộ và phản hồi, OpenRouter và nhà cung cấp mô hình khi dùng Agent, dịch vụ email và hạ tầng để vận hành, SePay để đối soát và đơn vị vận chuyển khi bạn sử dụng tính năng giao hàng.",
+      "Relevant data may be sent to Meta for sync and replies, OpenRouter and its model provider when Agent features are used, email and infrastructure providers for operations, SePay for reconciliation, and carriers when you use shipping features."
+    ],
+    [
+      "Bảo mật",
+      "Security",
+      "Chúng tôi áp dụng xác thực tài khoản, phân quyền theo không gian làm việc và biện pháp bảo vệ thông tin xác thực. Nếu nghi ngờ truy cập trái phép, hãy đổi mật khẩu và báo qua kênh liên hệ bên dưới.",
+      "We use account authentication, workspace permissions and safeguards for credentials. If you suspect unauthorized access, change your password and contact us below."
+    ],
+    [
+      "Thời gian lưu trữ",
+      "Retention",
+      "Thời gian lưu phụ thuộc loại dữ liệu, nhu cầu cung cấp dịch vụ và nghĩa vụ pháp lý. Một số hồ sơ có thể cần được giữ để đối soát, giải quyết tranh chấp hoặc thực hiện nghĩa vụ theo luật.",
+      "Retention depends on the data type, service needs and legal obligations. Some records may be retained for reconciliation, dispute resolution or legal obligations."
+    ],
+    [
+      "Quyền của bạn và yêu cầu xóa",
+      "Your rights and deletion requests",
+      "Bạn có thể gửi yêu cầu truy cập, chỉnh sửa, xóa, hạn chế xử lý hoặc rút lại sự đồng ý qua email bên dưới. Hãy nêu tài khoản hoặc kênh liên quan để chúng tôi xác minh. Bạn cũng có thể ngắt kết nối kênh hoặc thu hồi quyền trong Meta. Để xóa dữ liệu đã đồng bộ, hãy gửi yêu cầu riêng.",
+      "You can request access, correction, deletion, restriction or withdrawal of consent through the email below. Identify the relevant account or channel so we can verify the request. You can also disconnect a channel or revoke access in Meta. Send a separate request to remove previously synced records."
+    ],
+    [
+      "Cookie và lưu trữ trình duyệt",
+      "Cookies and browser storage",
+      "SnailChat sử dụng cookie để duy trì phiên đăng nhập. Một số thiết lập giao diện có thể được ghi nhớ trên trình duyệt.",
+      "SnailChat uses cookies to maintain sign-in sessions. Some interface preferences may be stored in your browser."
+    ],
+    [
+      "Đối tượng sử dụng",
+      "Intended users",
+      "Dịch vụ hướng đến người quản lý kênh, cửa hàng và đội ngũ được ủy quyền làm việc với khách hàng.",
+      "The service is intended for channel managers, businesses and team members authorized to work with customers."
+    ],
+    [
+      "Thay đổi chính sách",
+      "Policy changes",
+      "Ngày hiệu lực ở đầu trang cho biết phiên bản chính sách. Thông tin về thay đổi quan trọng có thể được thông báo trong ứng dụng hoặc qua email.",
+      "The effective date identifies the policy version. Material updates may be communicated in the app or by email."
+    ],
+    [
+      "Liên hệ",
+      "Contact",
+      "Liên hệ CÔNG TY TNHH SNAILSOFT về quyền riêng tư hoặc yêu cầu dữ liệu theo địa chỉ dưới đây.",
+      "Contact SNAILSOFT COMPANY LIMITED at the address below for privacy questions or data requests."
+    ]
+  ],
+  "terms": [
+    [
+      "Chấp thuận điều khoản",
+      "Acceptance",
+      "Điều khoản này áp dụng khi sử dụng SnailChat do CÔNG TY TNHH SNAILSOFT cung cấp. Nếu thay mặt tổ chức, bạn cần có quyền đại diện cho tổ chức đó.",
+      "These terms apply to your use of SnailChat, provided by SNAILSOFT COMPANY LIMITED. If acting for an organization, you must be authorized to represent it."
+    ],
+    [
+      "Dịch vụ SnailChat",
+      "The service",
+      "SnailChat hỗ trợ quản lý kênh, tin nhắn, bình luận, AI Agent và đơn hàng. Tính năng khả dụng phụ thuộc gói, cấu hình và quyền nền tảng đã cấp.",
+      "SnailChat supports channel management, messages, comments, AI Agent features and orders. Availability depends on your plan, configuration and platform permissions."
+    ],
+    [
+      "Tài khoản và thành viên",
+      "Accounts and team access",
+      "Cung cấp thông tin chính xác, giữ bí mật thông tin đăng nhập và phân quyền thành viên phù hợp. Hãy báo ngay nếu phát hiện truy cập trái phép.",
+      "Provide accurate information, protect sign-in credentials and assign appropriate team permissions. Notify us if you detect unauthorized access."
+    ],
+    [
+      "Kết nối và cấp quyền kênh",
+      "Connecting and authorizing channels",
+      "Chỉ kết nối kênh bạn được phép quản lý. Việc cấp quyền cho phép SnailChat đồng bộ, phản hồi và đọc số liệu theo tính năng bạn sử dụng. Bạn có thể thu hồi quyền trên nền tảng.",
+      "Only connect channels you are authorized to manage. The access you grant allows SnailChat to sync, reply and read metrics for enabled features. Access can be revoked on the platform."
+    ],
+    [
+      "Nội dung và phản hồi AI",
+      "Content and AI replies",
+      "Bạn cần có quyền sử dụng nội dung tải lên và cho phép SnailChat xử lý nội dung để cung cấp dịch vụ. Hãy kiểm tra dữ liệu huấn luyện, quy tắc và phản hồi do Agent tạo, nhất là khi bật chế độ tự gửi.",
+      "You must have the necessary rights to uploaded material and allow SnailChat to process it to deliver the service. Review Agent instructions, rules and replies, especially when automatic replies are enabled."
+    ],
+    [
+      "Hành vi bị cấm",
+      "Prohibited conduct",
+      "Không dùng dịch vụ để spam, giả mạo, truy cập kênh trái phép, xâm phạm quyền của người khác hoặc làm gián đoạn hệ thống.",
+      "Do not use the service for spam, impersonation, unauthorized channel access, infringement or disruption of the system."
+    ],
+    [
+      "Gói và thanh toán",
+      "Plans and payment",
+      "Thông tin giá và giới hạn hiển thị tại thời điểm mua. Nếu thanh toán bằng chuyển khoản, gói được kích hoạt sau khi giao dịch phù hợp được xác nhận. Quyền sử dụng có thể thay đổi khi gói hết hạn.",
+      "Prices and limits are displayed at purchase. Bank-transfer plans activate after a matching transaction is confirmed. Access may change when a plan expires."
+    ],
+    [
+      "Dịch vụ bên thứ ba",
+      "Third-party services",
+      "Các tính năng có thể phụ thuộc vào Meta, dịch vụ AI, thanh toán hoặc vận chuyển. Quyền và khả năng hoạt động có thể thay đổi theo quy định của mỗi nhà cung cấp.",
+      "Features may depend on Meta, AI, payment or carrier services. Access and availability can change under each provider’s own rules."
+    ],
+    [
+      "Sở hữu trí tuệ",
+      "Intellectual property",
+      "Tên, giao diện và phần mềm SnailChat thuộc CÔNG TY TNHH SNAILSOFT hoặc bên cấp phép tương ứng. Người dùng được truy cập dịch vụ trong phạm vi gói và các điều khoản áp dụng.",
+      "The SnailChat name, interface and software belong to SNAILSOFT COMPANY LIMITED or the relevant licensors. Users may access the service within their plan and the applicable terms."
+    ],
+    [
+      "Tạm ngừng và chấm dứt",
+      "Suspension and termination",
+      "Bạn có thể ngừng sử dụng dịch vụ. Tài khoản có thể bị hạn chế khi sử dụng sai mục đích, gây rủi ro cho hệ thống hoặc khi cơ quan có thẩm quyền yêu cầu.",
+      "You may stop using the service. Access may be restricted for misuse, risks to the system or a requirement from a competent authority."
+    ],
+    [
+      "Giới hạn của dịch vụ",
+      "Service limitations",
+      "Kết quả AI và số liệu đồng bộ có thể không đầy đủ hoặc không chính xác. Kiểm tra thông tin trước khi phản hồi khách hàng, xác nhận đơn hoặc ra quyết định kinh doanh.",
+      "AI outputs and synced metrics may be incomplete or inaccurate. Verify information before replying to customers, confirming orders or making business decisions."
+    ],
+    [
+      "Luật áp dụng và tranh chấp",
+      "Law and disputes",
+      "Điều khoản áp dụng theo pháp luật Việt Nam. Các bên ưu tiên trao đổi để giải quyết tranh chấp và có thể đưa vụ việc tới cơ quan có thẩm quyền nếu cần.",
+      "These terms are governed by Vietnamese law. The parties should first seek a resolution through discussion and may refer the matter to a competent authority if needed."
+    ],
+    [
+      "Thay đổi điều khoản",
+      "Changes to these terms",
+      "Khi điều khoản thay đổi, ngày hiệu lực được cập nhật ở đầu trang. Các thay đổi quan trọng có thể được thông báo qua email hoặc trong ứng dụng.",
+      "When these terms change, the effective date is updated at the top of the page. Material changes may be communicated by email or in the app."
+    ],
+    [
+      "Liên hệ",
+      "Contact",
+      "Nếu có câu hỏi về điều khoản, hãy liên hệ CÔNG TY TNHH SNAILSOFT qua email bên dưới.",
+      "For questions about these terms, contact SNAILSOFT COMPANY LIMITED at the email address below."
+    ]
+  ]
+}

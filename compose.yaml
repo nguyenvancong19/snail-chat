@@ -1,0 +1,88 @@
+name: reeldesk
+services:
+  db:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-reeldesk}
+      POSTGRES_USER: ${POSTGRES_USER:-reeldesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-reeldesk}
+      PGUSER: ${POSTGRES_USER:-reeldesk}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      QUEUE_ENABLED: ${QUEUE_ENABLED:-1}
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v26.0}
+      FB_APP_ID: ${FB_APP_ID:-}
+      FB_APP_SECRET: ${FB_APP_SECRET:-}
+      FB_MESSENGER_ENABLED: ${FB_MESSENGER_ENABLED:-0}
+      FB_WEBHOOK_TOKEN: ${FB_WEBHOOK_TOKEN:-}
+      IG_APP_ID: ${IG_APP_ID:-}
+      IG_APP_SECRET: ${IG_APP_SECRET:-}
+      IG_WEBHOOK_TOKEN: ${IG_WEBHOOK_TOKEN:-}
+      META_INSIGHTS_ENABLED: ${META_INSIGHTS_ENABLED:-0}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-0}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_LOCAL_TEST: ${SMTP_LOCAL_TEST:-0}
+      SEPAY_BANK_CODE: ${SEPAY_BANK_CODE:-}
+      SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
+      SEPAY_ACCOUNT_NAME: ${SEPAY_ACCOUNT_NAME:-}
+      SEPAY_WEBHOOK_SECRET: ${SEPAY_WEBHOOK_SECRET:-}
+    volumes:
+      - media_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 8s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+    stop_grace_period: 150s
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    profiles: ["mail-test"]
+    ports:
+      - "127.0.0.1:8025:8025"
+volumes:
+  pg_data:
+  media_data:
