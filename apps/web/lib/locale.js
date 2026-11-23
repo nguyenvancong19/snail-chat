@@ -162,7 +162,7 @@ const rows = {
   messagesHeading:["Tin nhắn Messenger", "Messenger messages", "Messenger 메시지", "Messenger メッセージ", "Messenger 消息", "ข้อความ Messenger", "ຂໍ້ຄວາມ Messenger"],
   postStats:["Thống kê bài đăng", "Post analytics", "게시물 분석", "投稿分析", "帖子统计", "สถิติโพสต์", "ສະຖິຕິໂພສ"],
   managePlansHeading:["Quản lý gói dịch vụ", "Manage service plans", "서비스 요금제 관리", "サービスプラン管理", "管理服务套餐", "จัดการแพ็กเกจบริการ", "ຈັດການແພັກເກດບໍລິການ"],
-  botHeading:["Cấu hình bot", "Bot configuration", "봇 설정", "ボット設定", "机器人设置", "ตั้งค่าบอท", "ຕັ້ງຄ່າບອດ"],
+  botHeading:["Cấu hình agent", "Agent configuration", "봇 설정", "ボット設定", "机器人设置", "ตั้งค่าบอท", "ຕັ້ງຄ່າບອດ"],
   noPeriodData:["Chưa ghi nhận dữ liệu trong khoảng thời gian này.", "No data was recorded in this period.", "이 기간에 기록된 데이터가 없습니다.", "この期間のデータはありません。", "此时间段内没有记录。", "ไม่มีข้อมูลในช่วงเวลานี้", "ບໍ່ມີຂໍ້ມູນໃນຊ່ວງເວລານີ້."],
   noChartData:["Chưa có dữ liệu", "No data", "데이터 없음", "データなし", "暂无数据", "ไม่มีข้อมูล", "ບໍ່ມີຂໍ້ມູນ"],
   remaining:["Còn lại", "Remaining", "나머지", "残り", "其余", "ที่เหลือ", "ທີ່ເຫຼືອ"],
