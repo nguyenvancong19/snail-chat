@@ -169,7 +169,7 @@ function OrderList({ channel, pendingVerifications=0, refreshWorkspace, owner, a
       {result?.enabled&&<span className="dim"> {copy("Đang bật")}</span>}
     </section>
     {channel.purpose==='sales'&&<div className="toolbar">
-      <Button icon="bot" variant="primary" disabled={!result} onClick={()=>setCheckoutCases(result)}>{copy("Cấu hình bot chốt đơn")}</Button>
+      <Button icon="bot" variant="primary" disabled={!result} onClick={()=>setCheckoutCases(result)}>{copy("Cấu hình agent chốt đơn")}</Button>
     </div>}
     </>}
     {panel==='buyers'&&<BuyerVerification channel={channel.id} refreshOrders={()=>{setRevision((value)=>value+1);refreshWorkspace?.().catch(()=>{});}}/>}

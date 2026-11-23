@@ -25,7 +25,7 @@ export function validateRules(value) {
   }
   const bounded = (input, max) => {
     if (typeof input !== 'string' || input.trim().length > max) {
-      throw new Error('Một trường cấu hình bot không hợp lệ hoặc vượt quá giới hạn ký tự.');
+      throw new Error('Một trường cấu hình agent không hợp lệ hoặc vượt quá giới hạn ký tự.');
     }
     return input.trim();
   };
@@ -43,7 +43,7 @@ export function validateRules(value) {
   });
   const config = {groups, fallback:bounded(value.fallback ?? '', 1000)};
   if (new TextEncoder().encode(JSON.stringify(config)).length > 30000) {
-    throw new Error('Cấu hình bot quá dài. Hãy rút gọn cụm từ hoặc câu trả lời.');
+    throw new Error('Cấu hình agent quá dài. Hãy rút gọn cụm từ hoặc câu trả lời.');
   }
   return config;
 }
