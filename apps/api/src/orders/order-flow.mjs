@@ -126,14 +126,26 @@ function multiRecap(items,code){
 }
 
 export async function createShopOrder(channelId,senderId,draft,product,now,automatic,enqueue=true) {
-  await run(`INSERT INTO shop_orders(channel_id,code,sender_id,sku,product_name,quantity,unit_price,
+  const result=await run(`WITH selling_page AS (
+    SELECT page.id FROM channels page JOIN entitled_shop_channels entitlement ON entitlement.id=page.id
+    JOIN shops shop ON shop.id=page.shop_id AND shop.status='ACTIVE'
+      AND (shop.expired_at IS NULL OR shop.expired_at>extract(epoch FROM clock_timestamp())*1000)
+    JOIN subscription_plans plan ON plan.code=shop.subscription_plan
+    JOIN users owner ON owner.id=shop.owner_id AND owner.active=1
+    WHERE page.id=$1 AND page.platform='fb' AND page.page_purpose='sales'
+      AND COALESCE((plan.feature_flags->>'orders')::boolean,plan.order_management)
+      AND ($3='' OR (page.orders_enabled AND page.messenger=1))
+    FOR SHARE OF page
+  )
+  INSERT INTO shop_orders(channel_id,code,sender_id,sku,product_name,quantity,unit_price,
     customer,phone,address,status,created,updated,history,bot_created,ghn_config,ghn_shop,ghn_next,items)
     SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'new',$11::bigint,$11::bigint,$12,$13,c.auto_config,
       CASE WHEN c.auto_config IS NOT NULL THEN c.account_ref END,
       CASE WHEN c.auto_config IS NOT NULL THEN $11::bigint END,$15::jsonb
-    FROM (SELECT 1) AS source LEFT JOIN shop_carriers c ON c.channel_id=$1 AND c.carrier='ghn' AND $14::boolean`,
+    FROM selling_page LEFT JOIN shop_carriers c ON c.channel_id=selling_page.id AND c.carrier='ghn' AND $14::boolean`,
     channelId,draft.code,senderId,product.sku,product.name,draft.quantity,product.price,
     draft.customer,draft.phone,draft.address,now,JSON.stringify([{status:'new',at:now}]),automatic,enqueue,draft.items?.length?JSON.stringify(draft.items):null);
+  return result.changes===1;
 }
 function trackingQuestion(text){
   const input=words(text).normalize('NFD').replace(/\p{M}/gu,'').replaceAll('đ','d');
@@ -281,7 +293,7 @@ export async function orderReply(channelId,senderId,text,templates,cases=[],comm
   const response=needsSizeReview?'Shop đã nhận xác nhận đơn '+draft.code+'. Shop sẽ kiểm tra size bạn chọn trước khi lên đơn ạ.':
     canPlace?reply('placed',{code:draft.code}):reply('waiting',{code:draft.code,customer:draft.customer});
   if(canPlace){
-    await createShopOrder(channelId,senderId,{...draft,items:multi?items:null},product,now,true);
+    if(!await createShopOrder(channelId,senderId,{...draft,items:multi?items:null},product,now,true))return null;
   }else{
     await run(`INSERT INTO order_verifications(channel_id,code,sender_id,sku,quantity,unit_price,customer,phone,address,confirmed_at,items,customer_check_required)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,channelId,draft.code,senderId,product.sku,draft.quantity,

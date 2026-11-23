@@ -858,7 +858,8 @@ async function queueVerificationNotices() {
       LEFT JOIN inbox_messages previous ON previous.id=v.notice_message_id
       WHERE v.status='verified' AND v.notice IS NOT NULL AND contact.last_inbound>$1
         AND (v.notice_message_id IS NULL OR (previous.status IN ('review','expired') AND contact.last_inbound>previous.created))
-        AND c.messenger=1 AND u.active=1 AND u.email_verified_at IS NOT NULL
+        AND c.messenger=1 AND c.page_purpose='sales' AND c.orders_enabled
+        AND u.active=1 AND u.email_verified_at IS NOT NULL
         AND EXISTS(SELECT 1 FROM inbox_messages m WHERE m.channel_id=v.channel_id AND m.sender_id=v.sender_id
           AND m.created=contact.last_inbound AND m.status IN ('review','replied'))
       ORDER BY v.confirmed_at LIMIT 8 FOR UPDATE OF v SKIP LOCKED`,cutoff);
@@ -1030,7 +1031,11 @@ export async function replyTick(messaging=false) {
     if(!entitled?.feature_flags[messaging?'messages':'comments'])return finish('review','Gói hiện tại không bao gồm tính năng này.');
     const customMessage=messaging&&c.message_bot_mode==='rules'&&c.message_bot_policy?.version===2;
     const verificationNotice=messaging&&item.reply_request_id?.startsWith('verification-');
+    const productReviewNotice=messaging&&item.reply_request_id?.startsWith('product-review-');
+    if(productReviewNotice&&c.page_purpose!=='sales')return finish('review');
     const requiresOrders=messaging&&item.automatic&&(item.order_auto||item.sales_ai);
+    if((requiresOrders||verificationNotice)&&(c.page_purpose!=='sales'||!c.orders_enabled))
+      return finish('review');
     if(messaging&&item.automatic){
       const contact=await get('SELECT agent_resume_at FROM messenger_contacts WHERE channel_id=$1 AND sender_id=$2',c.id,item.sender_id);
       if(!agentCanAnswer(item.created,contact?.agent_resume_at))return finish('review');
@@ -1082,7 +1087,7 @@ export async function replyTick(messaging=false) {
         try{
           const plan=await shopFeatures(c.shop_id);
           if(!automationAllowed(plan,item.created))return finish('review',automationPauseNote(plan));
-          const tracking=plan.order_management&&await shipmentCustomerReply(c.id,item.sender_id,item.text,history);
+          const tracking=c.page_purpose==='sales'&&plan.order_management&&await shipmentCustomerReply(c.id,item.sender_id,item.text,history);
           result=tracking?{action:'reply',reply:tracking}:
             await runSalesAgent(c,policy,item.text,{context:history[0]?.text,
               history:[...history,...outbound].sort((a,b)=>a.created-b.created)});
@@ -1271,7 +1276,13 @@ export async function replyTick(messaging=false) {
       ensure(await activePage(item.channel_id),403,'Page đang tạm ngừng xử lý.');
       ensure(!item.queued_by||await canSendQueuedReply(item.channel_id,item.queued_by),
         403,'Người gửi không còn quyền trả lời trên Page.');
+      if(productReviewNotice)ensure(await get(`SELECT 1 FROM channels WHERE id=$1 AND page_purpose='sales'`,c.id),
+        403,'Page này đã ngừng bán hàng.');
       if(item.automatic||verificationNotice){
+        if(orderLookup||requiresOrders||verificationNotice){
+          ensure(await get(`SELECT 1 FROM channels WHERE id=$1 AND page_purpose='sales' AND orders_enabled`,c.id),
+            403,'Page này đã tắt chốt đơn.');
+        }
         const plan=await shopFeatures(c.shop_id);
         ensure(!item.automatic||automationAllowed(plan,item.created),403,automationPauseNote(plan));
         ensure(!(orderLookup||requiresOrders||verificationNotice)||plan?.order_management,403,
@@ -1322,9 +1333,10 @@ export async function replyTick(messaging=false) {
         const verified=await get(`SELECT * FROM order_verifications WHERE channel_id=$1 AND code=$2
           AND notice_message_id=$3 AND status='verified' FOR UPDATE`,item.channel_id,code,id);
         if(!verified)return;
-        await createShopOrder(verified.channel_id,verified.sender_id,verified,{
+        const placed=await createShopOrder(verified.channel_id,verified.sender_id,verified,{
           sku:verified.sku,name:verified.approved_product_name,price:verified.unit_price,
         },now,false);
+        if(!placed)return;
         await run("UPDATE order_verifications SET status='approved' WHERE channel_id=$1 AND code=$2",item.channel_id,code);
       });
     }

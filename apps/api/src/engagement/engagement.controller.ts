@@ -158,7 +158,7 @@ export class EngagementController {
     await transaction(async()=>{
       const current=await get('SELECT * FROM channels WHERE id=$1 AND shop_id=$2 FOR UPDATE',channel.id,req.actor.currentShop.id);
       ensure(current,404,'Không tìm thấy Page.');
-      ensure(!body.checkout||current.page_purpose==='sales',400,'Chọn danh mục Bán hàng cho Page để chốt đơn.');
+      ensure(!body.checkout||(current.platform==='fb'&&current.page_purpose==='sales'),400,'Chọn danh mục Bán hàng cho Page để chốt đơn.');
       ensure(agentMode==='off'||agentMarkdown||await get('SELECT id FROM agent_documents WHERE channel_id=$1 LIMIT 1',channel.id),
         400,'Nhập hướng dẫn chung hoặc tải lên ít nhất một tệp hướng dẫn.');
       const policy={...editableBotPolicy(current.message_bot_policy),agentMode,agentMarkdown,unifiedAgent:true};

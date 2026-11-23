@@ -1,3 +1,4 @@
+import { workspaceAccessSchema } from './migrations/017-workspace-access.mjs';
 import { aiWalletSchema } from './migrations/016-ai-wallet.mjs';
 import { platformGuardrailsSchema } from './migrations/014-platform-guardrails.mjs';
 import { listPaginationSchema } from './migrations/013-list-pagination.mjs';
@@ -123,6 +124,10 @@ export async function initializeDatabase() {
     if(!await get("SELECT id FROM schema_migrations WHERE id='016-ai-wallet'")){
       await run(aiWalletSchema);
       await run("INSERT INTO schema_migrations(id) VALUES('016-ai-wallet')");
+    }
+    if(!await get("SELECT id FROM schema_migrations WHERE id='017-workspace-access'")){
+      await run(workspaceAccessSchema);
+      await run("INSERT INTO schema_migrations(id) VALUES('017-workspace-access')");
     }
   });
 }

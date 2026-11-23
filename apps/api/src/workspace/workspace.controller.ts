@@ -71,6 +71,7 @@ export class WorkspaceController {
     return { sounds: await listAlertSounds(req.actor.currentShop.id) };
   }
 
+  @RoutePolicy('session')
   @Get('events')
   async events(@Req() req: AppRequest, @Res() res: Response) {
     await openPageEvents(req, res);

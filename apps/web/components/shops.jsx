@@ -42,7 +42,7 @@ function PagePermissions({ channels, orders, initial=[] }) {
   </fieldset>;
 }
 
-export function ShopMembers({ state }) {
+export function ShopMembers({ state, accessRevision }) {
   const {copy}=useDisplayLocale();
   const [items,setItems]=useState(null),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [dialog,setDialog]=useState(null),[revision,setRevision]=useState(0);
@@ -52,7 +52,7 @@ export function ShopMembers({ state }) {
       if(!controller.signal.aborted){setItems(items);setError('');}
     }).catch((error)=>{if(!controller.signal.aborted)setError(error.message);});
     return ()=>controller.abort();
-  },[revision]);
+  },[revision,accessRevision]);
   const members=useListPage(items??[]);
   const load=()=>setRevision((value)=>value+1);
   async function edit(form){
@@ -129,7 +129,7 @@ export function ShopInvitations({ state, onAcceptInvitation }){
   </>;
 }
 
-export function AdminShops(){
+export function AdminShops({ accessRevision }){
   const {intl,copy}=useDisplayLocale();
   const [renameOpen,setRenameOpen]=useState(false);
   const [page,setPage]=useState(1),[search,setSearch]=useState(''),[revision,setRevision]=useState(0);
@@ -140,7 +140,7 @@ export function AdminShops(){
       if(!controller.signal.aborted)setData(data);
     }).catch((error)=>{if(!controller.signal.aborted)setError(error.message);});
     return ()=>controller.abort();
-  },[page,search,revision]);
+  },[page,search,revision,accessRevision]);
   async function update(){
     const status=selected.status==='ACTIVE'?'SUSPENDED':'ACTIVE';
     const updated=await api('admin/shops/'+encodeURIComponent(selected.id)+'/status','PATCH',{status},undefined,selected.version);

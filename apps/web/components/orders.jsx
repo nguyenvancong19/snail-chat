@@ -152,6 +152,9 @@ function OrderList({ channel, pendingVerifications=0, refreshWorkspace, owner, a
     finally{setBusy(false);}
   }
   return <>
+    {channel.purpose!=='sales'&&<p className="notice" role="status">
+      {copy("Page đã ngừng bán hàng. Bạn vẫn có thể xem các đơn đã tạo theo quyền được cấp.")}
+    </p>}
     {owner&&<div className="toolbar order-tools" aria-label={copy("Thiết lập đơn hàng")}>
       {channel.purpose==='sales'&&<>
         {checkoutEnabled&&<Button aria-expanded={panel==='bot'} onClick={()=>setPanel(panel==='bot'?null:'bot')}>{copy("Chốt đơn tự động")}</Button>}
@@ -169,7 +172,7 @@ function OrderList({ channel, pendingVerifications=0, refreshWorkspace, owner, a
       {result?.enabled&&<span className="dim"> {copy("Đang bật")}</span>}
     </section>
     {channel.purpose==='sales'&&<div className="toolbar">
-      <Button icon="bot" variant="primary" disabled={!result} onClick={()=>setCheckoutCases(result)}>{copy("Cấu hình agent chốt đơn")}</Button>
+      <Button icon="bot" variant="primary" disabled={!result} onClick={()=>setCheckoutCases(result)}>{copy("Cấu hình bot chốt đơn")}</Button>
     </div>}
     </>}
     {panel==='buyers'&&<BuyerVerification channel={channel.id} refreshOrders={()=>{setRevision((value)=>value+1);refreshWorkspace?.().catch(()=>{});}}/>}
@@ -359,7 +362,7 @@ export function Orders({ state,selectedChannel,setSelectedChannel,refreshWorkspa
     {channel?<><div className="toolbar"><label htmlFor="orders-page">{t('page')}</label>
       <select id="orders-page" value={channel.id} onChange={(event)=>setSelectedChannel(event.target.value)}>
         {channels.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}
-      </select></div><OrderList key={channel.id+':'+state.memberRole+':'+channel.aiToolsEnabled} channel={channel} pendingVerifications={state.stats?.[channel.id]?.pending_verifications}
+      </select></div><OrderList key={channel.id+':'+channel.purpose+':'+state.memberRole+':'+channel.aiToolsEnabled} channel={channel} pendingVerifications={state.stats?.[channel.id]?.pending_verifications}
       refreshWorkspace={refreshWorkspace} activityVersion={activityVersion} activityTarget={activityTarget?.pageId===channel.id?activityTarget:null} owner={state.memberRole==='OWNER'}/></>:<Empty>{t('noOrderPage')}</Empty>}
   </>;
 }

@@ -30,7 +30,9 @@ export class CatalogController {
     ensure(ai||(body.knowledge===undefined&&(body.mode===undefined||body.mode==='off')),403,'Gói hiện tại không có AI agent.');
     const mode=ai?choicesOf(body.mode,['off','review','auto']):null;
     ensure(!mode||mode==='off'||(channel.platform==='fb'&&purpose==='sales'),400,'Tra ảnh dùng cho Messenger của Facebook Page bán hàng.');
-    await run('UPDATE channels SET page_purpose=$2,page_knowledge=COALESCE($3,page_knowledge),catalog_mode=COALESCE($4,catalog_mode) WHERE id=$1',
+    await run(`UPDATE channels SET page_purpose=$2,page_knowledge=COALESCE($3,page_knowledge),
+      catalog_mode=CASE WHEN $2<>'sales' THEN 'off' ELSE COALESCE($4,catalog_mode) END,
+      orders_enabled=CASE WHEN $2<>'sales' THEN FALSE ELSE orders_enabled END WHERE id=$1`,
       channel.id,purpose,ai?string(body.knowledge,5000):null,mode);
     return json(res,200,{ok:true});
   }

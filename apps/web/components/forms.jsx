@@ -119,7 +119,7 @@ export function Login({ submit, resend, startRecovery=false,startRegistration=fa
   return <main className="auth-page">
     <section className="auth-promo"><Brand href="/"/><div className="auth-promo-copy">
       <span className="eyebrow">{copy("QUẢN LÝ TƯƠNG TÁC")}</span><h1>{copy("Trả lời khách hàng")}<br/>{copy("ngay trên SnailChat.")}</h1>
-      <p>{copy("Kết nối Facebook và Instagram, cấu hình agent phản hồi và theo dõi tương tác trên từng bài đăng.")}</p>
+      <p>{copy("Kết nối Facebook và Instagram, cấu hình bot phản hồi và theo dõi tương tác trên từng bài đăng.")}</p>
       <div className="auth-platforms"><PlatformIcon platform="fb"/><PlatformIcon platform="ig"/></div>
     </div><div className="auth-art"><img src="/hero.svg" alt=""/></div><div className="auth-caption">SNAILCHAT · FACEBOOK &amp; INSTAGRAM</div></section>
     <section className="auth-main"><div className="auth-inner"><div className="auth-brand"><Brand href="/"/></div>
@@ -184,8 +184,18 @@ export function Login({ submit, resend, startRecovery=false,startRegistration=fa
 
 export function ChannelForm({ channel, close, save, connect }) {
   const {copy}=useDisplayLocale();
-  return <Dialog title={copy("Cấu hình kênh")} close={close} submit={(form)=>save('channels',{id:channel.id,topic:form.get('topic')})}>
+  return <Dialog title={copy("Cấu hình kênh")} close={close} submit={(form)=>save('channels',{id:channel.id,topic:form.get('topic'),purpose:form.get('purpose')})}>
     <p className="notice"><strong>{channel.name}</strong><br/>{channelIdentity(channel)}</p>
+    {channel.platform==='fb'&&<Field label={copy("Mục đích của Page")}>
+      <select name="purpose" defaultValue={channel.purpose} aria-describedby="channel-purpose-hint">
+        <option value="sales">{copy("Bán hàng")}</option>
+        <option value="news">{copy("Tin tức")}</option>
+        <option value="entertainment">{copy("Giải trí")}</option>
+      </select>
+    </Field>}
+    {channel.platform==='fb'&&<p className="bot-hint" id="channel-purpose-hint">
+      {copy("Chọn Bán hàng để có thể tạo đơn và bật chốt đơn cho Agent. Khi chuyển sang Tin tức hoặc Giải trí, đơn cũ vẫn được lưu.")}
+    </p>}
     <Field label={copy("Ghi chú chủ đề của kênh")}><textarea name="topic" defaultValue={channel.topic} maxLength={500}/></Field>
     <Button icon="link" onClick={()=>connect(channel.platform,channel.id)}>{channel.connected?copy("Cấp lại quyền"):copy("Kết nối tài khoản")}</Button>
   </Dialog>;

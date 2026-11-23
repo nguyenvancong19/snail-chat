@@ -5,7 +5,7 @@ import { ListPagination, useListPage } from './list-pagination.jsx';
 
 import { useDisplayLocale } from '../lib/display-locale.jsx';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { acknowledgementTemplates, commentDecision, decideBotReply, renderBotReply } from '@reeldesk/bot-rules';
 import { api } from '../lib/workspace.js';
 import { AiDraft } from './openrouter.jsx';
@@ -240,9 +240,10 @@ function UnifiedAgentForm({channel,save,orderManagement,hasGeneralFile}){
   const [mode,setMode]=useState(policy?.unifiedAgent?policy.agentMode??'off':'off');
   const [markdown,setMarkdown]=useState(()=>legacyAgentGuide(channel));
   const [checkout,setCheckout]=useState(!!channel.ordersEnabled);
+  useEffect(()=>setCheckout(!!channel.ordersEnabled),[channel.ordersEnabled]);
   const guide=hasGeneralFile?legacyAgentGuide(channel):markdown;
   return <Dialog inline title={copy("AI agent của Page")} label={copy("Lưu AI agent")}
-    submit={()=>save('bots/agent',{id:channel.id,mode,markdown:guide,checkout:orderManagement?channel.purpose==='sales'&&checkout:undefined})}>
+    submit={()=>save('bots/agent',{id:channel.id,mode,markdown:guide,checkout:orderManagement?channel.platform==='fb'&&channel.purpose==='sales'&&checkout:undefined})}>
     <Field label={copy("Chế độ hoạt động")}><select value={mode} onChange={(event)=>setMode(event.target.value)}>
       <option value="off">{copy("Tắt")}</option>
       <option value="review" disabled={!channel.messenger}>{copy("Soạn để shop duyệt")}</option>
@@ -262,9 +263,9 @@ function UnifiedAgentForm({channel,save,orderManagement,hasGeneralFile}){
         {!hasGeneralFile&&<p className="bot-hint">{copy("Dùng một mục trên mỗi dòng, giữ nguyên tên mục bên dưới, thêm dấu hai chấm rồi nhập thông tin của shop.")} <code>Giờ mở cửa · Địa chỉ cửa hàng · Liên hệ công khai · Ưu đãi</code></p>}
       </div>
     </details>}
-    {channel.purpose==='sales'&&orderManagement&&<label className="check"><input type="checkbox" checked={checkout}
+    {channel.platform==='fb'&&channel.purpose==='sales'&&orderManagement&&<label className="check"><input type="checkbox" checked={checkout}
       onChange={(event)=>setCheckout(event.target.checked)}/> {copy("Cho phép agent chốt và tạo đơn trong Messenger")}</label>}
-    {channel.purpose==='sales'&&orderManagement&&<p className="bot-hint">{copy("Tạo đơn cần chế độ Tự động xử lý và xác nhận của khách.")}</p>}
+    {channel.platform==='fb'&&channel.purpose==='sales'&&orderManagement&&<p className="bot-hint">{copy("Tạo đơn cần chế độ Tự động xử lý và xác nhận của khách.")}</p>}
   </Dialog>;
 }
 
@@ -281,7 +282,7 @@ export function BotConfiguration(props) {
   const {copy}=useDisplayLocale();
   const {channel,kind,mode,policy,faqs}=scope(props);
   if(channel?.platform==='fb')return <>
-    <Title title={copy("Cấu hình agent")} subtitle={copy("Một AI agent cho bình luận, Messenger và chốt đơn.")}/>
+    <Title title={copy("Cấu hình bot")} subtitle={copy("Một AI agent cho bình luận, Messenger và chốt đơn.")}/>
     <ShopAgentUsage/>
     <BotScope {...props} channels={props.state.channels} channel={channel} kind={kind} showSurface={false}/>
     {props.state.planFeatures?.agent_mode==='SCHEDULED'&&<p className="notice">
@@ -291,7 +292,7 @@ export function BotConfiguration(props) {
   </>;
   const modeLabel={auto:'Kết hợp tự gửi và duyệt tay',review:'Chỉ duyệt thủ công',rules:'Theo từng quy tắc',greeting:'Lời chào theo lượt chờ',off:'Đang tắt'};
   return <>
-    <Title title={copy("Cấu hình agent")} subtitle={copy("Chọn cách agent xử lý tin nhắn và bình luận của từng Page.")}/>
+    <Title title={copy("Cấu hình bot")} subtitle={copy("Chọn cách bot xử lý tin nhắn và bình luận của từng Page.")}/>
     <ShopAgentUsage/>
     {channel?<><BotScope {...props} channels={props.state.channels} channel={channel} kind={kind}/>
       <div className="bot-workspace-grid">
@@ -312,6 +313,6 @@ export function BotConfiguration(props) {
           <BotTester key={channel.id+kind} {...{channel,kind,policy,mode,faqs}}/>
         </div>
       </div>
-    </>:<Empty>{copy("Kết nối một Page để cấu hình agent.")}</Empty>}
+    </>:<Empty>{copy("Kết nối một Page để cấu hình bot.")}</Empty>}
   </>;
 }

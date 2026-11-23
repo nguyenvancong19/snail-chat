@@ -14,6 +14,7 @@ async function reviewScope(user,id) {
     WHERE m.id=$1 AND c.shop_id=$2 AND m.order_review IS NOT NULL`,id,user.currentShop.id),
   404,'Không tìm thấy yêu cầu xác nhận sản phẩm.');
   const channel=await access(user,message.channel_id,'chat:reply');
+  ensure(channel.page_purpose==='sales',409,'Page này đã ngừng bán hàng.');
   ensure(messengerEnabled&&channel.platform==='fb'&&channel.messenger,409,'Kênh chưa bật Messenger.');
   return {channel,message,plan};
 }
@@ -45,7 +46,9 @@ export async function resolveProductReview(user,id,body) {
       ON CONFLICT(channel_id,sender_id) DO NOTHING`,channel.id,message.sender_id,message.created);
     const contact=await get(`SELECT last_inbound,agent_resume_at FROM messenger_contacts
       WHERE channel_id=$1 AND sender_id=$2 FOR UPDATE`,channel.id,message.sender_id);
-    const current=await get('SELECT * FROM inbox_messages WHERE id=$1 FOR UPDATE',message.id);
+    const current=ensure(await get('SELECT * FROM inbox_messages WHERE id=$1 FOR UPDATE',message.id),404,'Không tìm thấy tin nhắn.');
+    const selling=ensure(await get(`SELECT * FROM channels WHERE id=$1 AND page_purpose='sales' FOR SHARE`,channel.id),
+      409,'Page này đã ngừng bán hàng.');
     if(current.order_review.decision){
       ensure(current.order_review.decision===action,409,'Yêu cầu đã được Shop xử lý.');
       return {orderReview:current.order_review};
@@ -61,11 +64,11 @@ export async function resolveProductReview(user,id,body) {
     if(action==='confirm'){
       items=await currentOrderItems(channel.id,requested);
       ensure(items.every(item=>item.available),409,'Có sản phẩm đã hết hàng hoặc không còn trong danh mục.');
-      if(channel.orders_enabled&&channel.page_purpose==='sales'&&plan.order_management){
+      if(selling.orders_enabled&&plan.order_management){
         ensure(!await get(`SELECT 1 FROM order_verifications WHERE channel_id=$1 AND sender_id=$2 AND status IN ('pending','verified')`,
           channel.id,current.sender_id),409,'Hội thoại đang có đơn chờ xử lý. Hãy hoàn thành đơn đó trước.');
-        reply=await orderReply(channel.id,current.sender_id,current.text,checkoutTemplates(channel.message_bot_policy,channel.order_templates),
-          channel.message_bot_policy?.unifiedAgent?[]:channel.order_cases,{kind:'buy',items:requested});
+        reply=await orderReply(channel.id,current.sender_id,current.text,checkoutTemplates(selling.message_bot_policy,selling.order_templates),
+          selling.message_bot_policy?.unifiedAgent?[]:selling.order_cases,{kind:'buy',items:requested});
       }else reply='Dạ, shop đã kiểm tra các sản phẩm sau:\n'+items.map(lineText).join('\n')+
         '\nBạn cho shop xin khu vực nhận hàng để mình kiểm tra phí giao nhé.';
     }

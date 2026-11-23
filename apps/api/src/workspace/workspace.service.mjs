@@ -5,7 +5,7 @@ import { get, all, run, access } from '../db/store.mjs';
 import { ensureDefaultShop, pageGrants, requireShop, usableShop, userShops, workspaceShop, visiblePageIds } from '../shops/tenant.mjs';
 import { shopNameDetails } from '../shops/names.mjs';
 import { pendingInvitations } from '../shops/members.mjs';
-import { ensure, publicUser, string } from '../http/validation.mjs';
+import { choicesOf, ensure, publicUser, string } from '../http/validation.mjs';
 import { configured, facebookCommentRoot, messageWindow, messengerEnabled, postBot, privateReplyWindow, queueEnabled } from '../meta/meta.mjs';
 
 function viewActivity(row, messaging, now, ai) {
@@ -88,10 +88,11 @@ export async function bootstrap(user,selectedShop,pagedAccounts=false) {
   const owner=user.memberRole==='OWNER';
   if(owner)data.shopName=await shopNameDetails(plan);
   const orderPages=owner&&orders?[...grants.keys()]:[];
-  data.channels=(await all('SELECT * FROM channels WHERE id=ANY($1::text[]) ORDER BY name,platform',[...grants.keys()])).map((c)=>({
-    id:c.id,name:c.name,handle:c.handle,platform:c.platform,createdAt:c.created_at,topic:c.topic,purpose:c.page_purpose,permissions:orders?grants.get(c.id):grants.get(c.id).filter((permission)=>permission!=='order:manage'),
+  data.channels=(await all(`SELECT c.*, EXISTS(SELECT 1 FROM shop_orders o WHERE o.channel_id=c.id) AS has_orders
+    FROM channels c WHERE c.id=ANY($1::text[]) ORDER BY c.name,c.platform`,[...grants.keys()])).map((c)=>({
+    id:c.id,name:c.name,handle:c.handle,platform:c.platform,createdAt:c.created_at,topic:c.topic,purpose:c.page_purpose,permissions:orders&&c.platform==='fb'&&(c.page_purpose==='sales'||c.has_orders)?grants.get(c.id):grants.get(c.id).filter((permission)=>permission!=='order:manage'),
     botMode:ai?(c.bot_mode==='auto'&&!c.comment_policy?'review':c.bot_mode):'off',policy:knowledgePolicy(c.comment_policy),
-    ordersEnabled:orders&&c.orders_enabled,aiToolsEnabled:ai,messageBotMode:ai?c.message_bot_mode:'off',
+    ordersEnabled:orders&&c.platform==='fb'&&c.page_purpose==='sales'&&c.orders_enabled,aiToolsEnabled:ai,messageBotMode:ai?c.message_bot_mode:'off',
     messageBotPolicy:knowledgePolicy(c.message_bot_policy),messageGreeting:ai?c.message_greeting:null,messagePersonalize:ai&&c.message_personalize,
     commentsEnabled:flags.comments===true,quickRepliesEnabled:flags.quickReplies===true,privateRepliesEnabled:flags.messages===true,messenger:messengerEnabled&&!!c.messenger,connected:!!(c.token&&(!c.expires||c.expires>now)),
   }));
@@ -109,7 +110,7 @@ export async function bootstrap(user,selectedShop,pagedAccounts=false) {
       SELECT DISTINCT ON(sender_id) status,created FROM inbox_messages WHERE channel_id=c.id
       ORDER BY sender_id,created DESC,id DESC
     ) newest WHERE status='review' AND created>$2) pending_threads ON true
-    LEFT JOIN LATERAL (SELECT COUNT(*) AS pending FROM order_verifications WHERE c.id=ANY($3::text[]) AND channel_id=c.id AND status='pending') verifications ON true
+    LEFT JOIN LATERAL (SELECT COUNT(*) AS pending FROM order_verifications WHERE c.id=ANY($3::text[]) AND c.page_purpose='sales' AND channel_id=c.id AND status='pending') verifications ON true
     WHERE c.id=ANY($1::text[])`,[...grants.keys()],now-messageWindow,orderPages);
   data.stats=Object.fromEntries(engagementCounts.map(({id,...counts})=>[
     id,Object.fromEntries(Object.entries(counts).filter(([key])=>owner||key==='pending_messages'||key==='pending_comments').map(([key,value])=>[
@@ -225,7 +226,10 @@ export async function saveChannel(user,body) {
   const id=string(body.id,50);
   ensure(id,400,'Hãy kết nối tài khoản Facebook hoặc Instagram để tạo kênh.');
   await access(user,id);
-  await run('UPDATE channels SET topic=$1 WHERE id=$2',string(body.topic,500),id);
+  const purpose=body.purpose==null?null:choicesOf(body.purpose,['sales','news','entertainment']);
+  await run(`UPDATE channels SET topic=$1,page_purpose=COALESCE($3,page_purpose),
+    orders_enabled=CASE WHEN $3<>'sales' THEN FALSE ELSE orders_enabled END,
+    catalog_mode=CASE WHEN $3<>'sales' THEN 'off' ELSE catalog_mode END WHERE id=$2`,string(body.topic,500),id,purpose);
 }
 
 export async function commentInbox(user,{channel,status,before}) {

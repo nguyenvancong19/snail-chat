@@ -2,7 +2,7 @@ import { shopFeatures } from '../billing/plan-features.mjs';
 import { EventEmitter } from 'node:events';
 import { db } from '../db/store.mjs';
 import { authenticate } from '../http/wire.mjs';
-import { pageGrants, requireShop } from './tenant.mjs';
+import { pageGrants, requireShop, usableShop, userShops } from './tenant.mjs';
 import { ensure } from '../http/validation.mjs';
 
 const topic='snailchat_page_activity';
@@ -36,6 +36,10 @@ async function listen() {
       if(channel!==topic)return;
       try {
         const event=JSON.parse(payload);
+        if(typeof event.access==='string'&&(event.access==='admin'||/^(shop|user):.+/.test(event.access))){
+          events.emit('access:'+event.access);
+          return;
+        }
         if(typeof event.room==='string'&&event.room.startsWith('page:')&&
           ['chat:read','chat:reply','order:manage'].includes(event.permission))events.emit(event.room,event);
       } catch {}
@@ -56,6 +60,12 @@ const counts=new Map();
 export async function openPageEvents(req,res) {
   const actor=req.actor;
   const key=actor.session_id;
+  const requestedShop=typeof req.query.shop==='string'?req.query.shop:null;
+  const accessRooms=['access:user:'+actor.id];
+  if(actor.is_super_admin)accessRooms.push('access:admin');
+  function accessChanged() {
+    if(!closed)send('access-changed',{});
+  }
   ensure((counts.get(key)??0)<6,429,'Đã có quá nhiều kết nối cập nhật.');
   counts.set(key,(counts.get(key)??0)+1);
   let grants,owner,soundAllowed,timer,lifetime;
@@ -69,6 +79,7 @@ export async function openPageEvents(req,res) {
     closed=true;
     for(const [room,handler] of rooms)events.off(room,handler);
     events.off('disconnect',close);
+    for(const room of accessRooms)events.off(room,accessChanged);
     clearInterval(timer);
     clearTimeout(lifetime);
     const remaining=counts.get(key)-1;
@@ -80,8 +91,20 @@ export async function openPageEvents(req,res) {
 
   async function updateRooms() {
     const current=await authenticate(req);
-    if(!current||current.session_id!==key||closed)return close();
-    const authorized=await requireShop(current,actor.currentShop.id);
+    if(closed)return;
+    if(!current||current.session_id!==key){
+      if(res.headersSent)accessChanged();
+      return close();
+    }
+    if(!current.is_super_admin)events.off('access:admin',accessChanged);
+    const shop=requestedShop&&(await userShops(current.id)).find(({id})=>id===requestedShop);
+    if(!shop||!usableShop(shop,Date.now())){
+      grants=new Map();
+      for(const [room,handler] of rooms)events.off(room,handler);
+      rooms.clear();
+      return;
+    }
+    const authorized=await requireShop(current,shop.id);
     owner=authorized.memberRole==='OWNER';
     const [pages,plan]=await Promise.all([pageGrants(authorized),shopFeatures(authorized.currentShop.id)]);
     soundAllowed=plan?.feature_flags.alertSounds===true;
@@ -127,6 +150,9 @@ export async function openPageEvents(req,res) {
 
   try{
     await listen();
+    if(requestedShop&&(await userShops(actor.id)).some(({id})=>id===requestedShop)){
+      accessRooms.push('access:shop:'+requestedShop);
+    }
     await updateRooms();
     if(closed){
       if(!res.destroyed)ensure(false,403,'Phiên cập nhật đã hết hiệu lực.');
@@ -136,6 +162,7 @@ export async function openPageEvents(req,res) {
     res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache, no-transform',
       'X-Accel-Buffering':'no'});
     res.write('retry: 3000\n: connected\n\n');
+    for(const room of accessRooms)events.on(room,accessChanged);
     timer=setInterval(()=>{
       updateRooms().then(()=>{if(!closed)res.write(': heartbeat\n\n');}).catch(close);
     },12_000);

@@ -41,6 +41,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   const [botKind,setBotKind]=useState('comment');
   const [activityTarget,setActivityTarget]=useState(null);
   const [notice,setNotice]=useState(''), [activityVersion,setActivityVersion]=useState(0);
+  const [accessRevision,setAccessRevision]=useState(0);
   const [changingAccount,setChangingAccount]=useState(false);
   const [switching,setSwitching]=useState(false), [pendingAlert,setPendingAlert]=useState(null);
   const [appearance,setAppearance]=useState(null),[appearanceTrial,setAppearanceTrial]=useState(null);
@@ -63,6 +64,21 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   const alerts=useWorkspaceAlerts(workspace?.user?.id,workspace?.activeShopId);
   const {notify}=alerts;
   const requestSequence=useRef(0), lastUnavailableShop=useRef(null);
+  const previousAccess=useRef(null);
+  useEffect(()=>{
+    if(!workspace?.user){previousAccess.current=null;return;}
+    const snapshot={
+      user:workspace.user.id,shop:workspace.activeShopId,
+      permissions:JSON.stringify([workspace.memberRole,workspace.shopAccessLimited,workspace.planFeatures?.feature_flags,
+        workspace.shops?.find(({id})=>id===workspace.activeShopId)?.subscriptionPlan,
+        workspace.channels.map(({id,purpose,permissions})=>[id,purpose,permissions])]),
+    };
+    const prior=previousAccess.current;
+    previousAccess.current=snapshot;
+    if(prior?.user===snapshot.user&&prior.shop===snapshot.shop&&prior.permissions!==snapshot.permissions){
+      setNotice('Quyền hoặc tính năng của Shop đã thay đổi.');
+    }
+  },[workspace]);
   const refresh=useCallback(async({fallback=true}={})=>{
     const request=++requestSequence.current;
     let data;
@@ -160,11 +176,11 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   const soundIncluded=workspace?.planFeatures?.feature_flags?.alertSounds===true;
   useEffect(()=>{
     const shop=workspace?.activeShopId;
-    if(!shop||switching||changingAccount||loginArea||workspace.shopAccessLimited)return;
-    const stream=new EventSource('/api/events?'+new URLSearchParams({shop}));
+    if(!accountId||switching||changingAccount||loginArea)return;
+    const stream=new EventSource(shop?'/api/events?'+new URLSearchParams({shop}):'/api/events');
     const controller=new AbortController();
     const {signal}=controller;
-    const current=()=>!signal.aborted&&activeShop()===shop;
+    const current=()=>!signal.aborted&&activeShop()===(shop??'');
     function unlock(){if(soundIncluded&&deviceSoundOn(shop))unlockAgentAudio();}
     window.addEventListener('pointerdown',unlock);
     window.addEventListener('keydown',unlock);
@@ -192,16 +208,27 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
         }
       });
     });
-    let timer;
-    stream.addEventListener('page',()=>{
+    let timer,accessChanged=false;
+    function updateWorkspace(){
       if(timer)return;
       timer=setTimeout(()=>{
         timer=undefined;
-        if(activeShop()!==shop)return;
+        if(!current())return;
+        if(accessChanged){
+          accessChanged=false;
+          setAccessRevision((value)=>value+1);
+        }
         setActivityVersion((value)=>value+1);
         refresh().catch(()=>{});
       },300);
-    });
+    }
+    function invalidateAccess(){
+      accessChanged=true;
+      updateWorkspace();
+    }
+    stream.addEventListener('page',updateWorkspace);
+    stream.addEventListener('access-changed',invalidateAccess);
+    stream.addEventListener('open',invalidateAccess);
     return ()=>{
       controller.abort();
       window.removeEventListener('pointerdown',unlock);
@@ -209,7 +236,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
       clearTimeout(timer);
       stream.close();
     };
-  },[workspace?.activeShopId,workspace?.shopAccessLimited,switching,changingAccount,loginArea,refresh,notify,soundIncluded]);
+  },[accountId,workspace?.activeShopId,switching,changingAccount,loginArea,refresh,notify,soundIncluded]);
 
   useEffect(()=>{
     if(!pendingAlert||!workspace?.user)return;
@@ -321,6 +348,9 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   }
   function renderDialog() {
     if(!dialog)return null;
+    const channelId=dialog.type==='post-bot'?dialog.value?.channel?.id:
+      ['channel','bot','message-bot'].includes(dialog.type)?dialog.value?.id:null;
+    if(channelId&&!workspace.channels.some((channel)=>channel.id===channelId))return null;
     if(['bot','post-bot','message-bot'].includes(dialog.type)&&(!owner||!agent||workspace.shopAccessLimited))return null;
     const {type,value}=dialog;
     const common={close,save};
@@ -364,7 +394,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
     ...userGroups.map((group)=>group.filter(([key])=>{
       if(key==='channels')return canRecover;
       if(!workspace.activeShopId||workspace.shopAccessLimited)return false;
-      if(key==='orders')return orders&&(owner||staff&&workspace.channels.some((channel)=>channel.permissions?.includes('order:manage')));
+      if(key==='orders')return orders&&(owner||staff)&&workspace.channels.some((channel)=>channel.permissions?.includes('order:manage'));
       if((key==='messages'&&!messages)||(key==='comments'&&!comments))return false;
       if(key==='bot-knowledge'&&!quickReplies&&!faq)return false;
       if(key==='bots'&&!agent)return false;
@@ -467,7 +497,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
           {copy("Shop vượt hạn mức Page hoặc nhân viên. Các Page tạm dừng xử lý.")}
           {owner?<Button onClick={()=>go('billing')}>{copy("Chọn tài nguyên hoặc nâng gói")}</Button>:<span> {copy("Liên hệ chủ Shop để tiếp tục.")}</span>}
         </div>}
-        {switching?<p className="dim" role="status">{copy("Đang chuyển Shop…")}</p>:<View key={workspace.user.id+':'+(workspace.activeShopId??'')+':'+(activityTarget?.version??id)} state={workspace} workspaceTab={workspaceTab} activityVersion={activityVersion} botKind={botKind} setBotKind={setBotKind} activityTarget={activityTarget} go={go} open={open} connect={connect} save={save} refreshWorkspace={refresh} notify={notify}
+        {switching?<p className="dim" role="status">{copy("Đang chuyển Shop…")}</p>:<View key={workspace.user.id+':'+(workspace.activeShopId??'')+':'+(activityTarget?.version??id)} state={workspace} workspaceTab={workspaceTab} activityVersion={activityVersion} accessRevision={accessRevision} botKind={botKind} setBotKind={setBotKind} activityTarget={activityTarget} go={go} open={open} connect={connect} save={save} refreshWorkspace={refresh} notify={notify}
         selectedChannel={selectedChannel} setSelectedChannel={(channel)=>{setActivityTarget(null);setSelectedChannel(channel);}} onAcceptInvitation={(id)=>switchShop(id)} onSwitchShop={switchShop}
         appearanceDraft={appearanceDraft} setAppearanceDraft={(draft)=>setAppearance({accountId,draft})}
         systemDark={systemDark} onTryAppearance={tryAppearance} loadInsights={(key)=>api('insights?channel='+encodeURIComponent(key))}/>}

@@ -66,7 +66,7 @@ export function Channels({ state, open, connect, workspaceTab, go, selectedChann
     {catalog?(channel?<><div className="toolbar"><label htmlFor="catalog-page">{t('channel')}</label>
       <select id="catalog-page" value={channel.id} onChange={(event)=>setSelectedChannel(event.target.value)}>
         {state.channels.map((item)=><option key={item.id} value={item.id}>{item.name}</option>)}
-      </select></div><CatalogPage key={channel.id+':'+channel.aiToolsEnabled} channel={channel}/></>:<Empty>{copy("Kết nối một kênh để tạo danh mục.")}</Empty>):<>
+      </select></div><CatalogPage key={channel.id+':'+channel.purpose+':'+channel.aiToolsEnabled} channel={channel}/></>:<Empty>{copy("Kết nối một kênh để tạo danh mục.")}</Empty>):<>
     <div className="analytics-grid">{['fb','ig'].map((p)=><section className="card tile connect-tile" key={p}>
       <PlatformIcon platform={p}/><h2>{platformLabel(p)}</h2>
       <p>{p==='fb'?copy("Đăng nhập Facebook, cấp quyền cho SnailChat và chọn các Page bạn muốn quản lý."):copy("Đăng nhập tài khoản Instagram Business hoặc Creator để cấp quyền.")}</p>
@@ -547,7 +547,7 @@ function ThreadMessages({ item, channel, save, revision, templateRevision, focus
       const area=event.currentTarget;
       followLatest.current=area.scrollHeight-area.scrollTop-area.clientHeight<60;
       if(!followLatest.current&&area.scrollTop<80&&!history.error)loadOlder();
-    }}><MessengerTimeline canRespond={channel.permissions?.includes('chat:reply')} latestId={latest?.items[0]?.id} aiToolsEnabled={channel.aiToolsEnabled} outbound={result?.outbound} focusMid={focus?.mid} items={result && focus && !result.items.some((entry)=>entry.id===focus.id)?[...result.items,focus]:result?.items} selectedMid={quote?.mid} onQuote={channel.permissions?.includes('chat:reply')?setQuote:undefined}/></div>
+    }}><MessengerTimeline canRespond={channel.permissions?.includes('chat:reply')} latestId={latest?.items[0]?.id} aiToolsEnabled={channel.aiToolsEnabled} productReviewEnabled={channel.purpose==='sales'} outbound={result?.outbound} focusMid={focus?.mid} items={result && focus && !result.items.some((entry)=>entry.id===focus.id)?[...result.items,focus]:result?.items} selectedMid={quote?.mid} onQuote={channel.permissions?.includes('chat:reply')?setQuote:undefined}/></div>
     {channel.permissions?.includes('chat:reply')&&<MessengerComposer {...{item,channel,save,quote,setQuote,templateRevision}}
       reviewItem={result?.items.find((message)=>message.mid===(quote?.by==='customer'?quote.mid:item.mid))??item}/>}
   </>;
@@ -798,8 +798,11 @@ function ActivityItems({ kind, channel, status, state, save, activityVersion, te
   const [selected,setSelected]=useState('');
   const [showTarget,setShowTarget]=useState(!!target);
   const key=(item)=>messaging?item.channelId+':'+item.senderId:item.id;
-  const current=(showTarget&&target?.item)?(messaging?result?.items.find((item)=>key(item)===key(target.item))??target.item:target.item)
-    :result?.items.find((item)=>key(item)===selected)??result?.items[0];
+  const readable=new Set(state.channels.filter(({permissions})=>permissions.includes('chat:read')).map(({id})=>id));
+  const items=result?.items.filter(({channelId})=>readable.has(channelId))??[];
+  const targetItem=showTarget&&readable.has(target?.item?.channelId)?target.item:null;
+  const current=targetItem?(items.find((item)=>key(item)===key(targetItem))??targetItem)
+    :items.find((item)=>key(item)===selected)??items[0];
   const currentKey=current?key(current):'';
   useEffect(()=>{
     if(currentKey)setSelected(currentKey);
@@ -808,10 +811,10 @@ function ActivityItems({ kind, channel, status, state, save, activityVersion, te
   return <>
     {error&&<p className="notice" role="alert">{copy(error)}</p>}
     {!result&&!error&&<Empty>{t('loadingData')}</Empty>}
-    {result?.items.length===0&&<Empty>{t(messaging?'noConversations':'noComments')}</Empty>}
-    {(!!result?.items.length||current)&&<div className={'inbox-grid'+(messaging?'':' comments-grid')}>
+    {result&&!items.length&&!current&&<Empty>{t(messaging?'noConversations':'noComments')}</Empty>}
+    {(items.length>0||current)&&<div className={'inbox-grid'+(messaging?'':' comments-grid')}>
       {messaging?<section className="card inbox-list" aria-label={t('conversations')}>
-        {result?.items.map((item)=>{
+        {items.map((item)=>{
           const source=state.channels.find((c)=>c.id===item.channelId);
           return <button type="button" className="inbox-row" key={key(item)} aria-pressed={key(current)===key(item)}
             onClick={()=>{setShowTarget(false);setSelected(key(item));}}>
@@ -822,9 +825,9 @@ function ActivityItems({ kind, channel, status, state, save, activityVersion, te
               item.status==='review'&&<span className="unread-dot" aria-label={t('reviewStatus')}/>}
           </button>;
         })}
-      </section>:<CommentInboxList items={result?.items??[]} channels={state.channels} selected={currentKey} onSelect={(id)=>{setShowTarget(false);setSelected(id);}}/>}
+      </section>:<CommentInboxList items={items} channels={state.channels} selected={currentKey} onSelect={(id)=>{setShowTarget(false);setSelected(id);}}/>}
       {current&&currentChannel&&<ActivityDetail key={key(current)} item={current} channel={currentChannel}
-        {...{kind,save,activityVersion,templateRevision,onHandled,openPlans}} focus={showTarget?(target?.focus??target?.item):null}/>}
+        {...{kind,save,activityVersion,templateRevision,onHandled,openPlans}} focus={targetItem?(target?.focus??targetItem):null}/>}
     </div>}
     <Pagination page={page} move={(next)=>{setShowTarget(false);setSelected('');move(next);}} next={result?.next} count={result?.items?.length}/>
   </>;
@@ -902,7 +905,7 @@ export function AdminOverview({ state, go }) {
     </div>
   </>;
 }
-export function AdminUsers({ state, refreshWorkspace }) {
+export function AdminUsers({ state, refreshWorkspace, accessRevision }) {
   const {copy}=useDisplayLocale();
   const [query,setQuery]=useState('');
   const [target,setTarget]=useState(null);
@@ -914,7 +917,7 @@ export function AdminUsers({ state, refreshWorkspace }) {
       if(!controller.signal.aborted){setResult(data);setError('');}
     }).catch(error=>{if(!controller.signal.aborted)setError(error.message);});
     return ()=>controller.abort();
-  },[page,query,revision]);
+  },[page,query,revision,accessRevision]);
   const statusAction=target?.active?copy("Khóa"):copy("Mở khóa");
   const users=result?.items??[];
   return <>

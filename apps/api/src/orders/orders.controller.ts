@@ -15,6 +15,8 @@ import { json, jsonBody } from '../http/wire.mjs';
 async function readOrders(actor: AppRequest['actor'], id: string, permission: string) {
   const channel=await accessChannel(actor,id,permission);
   const plan=await requireOrderFeature(channel.shop_id);
+  ensure(channel.platform==='fb'&&(channel.page_purpose==='sales'||await get(
+    'SELECT 1 FROM shop_orders WHERE channel_id=$1 LIMIT 1',channel.id)),403,'Page này chưa bật bán hàng và không có đơn để tra cứu.');
   return {channel,plan};
 }
 
@@ -97,7 +99,8 @@ export class OrdersController {
       ensure(product?.in_stock,400,'Mã sản phẩm chưa có trong danh mục hoặc đã hết hàng.');
       if(body.sendToGhn===true)ensure(await get(`SELECT 1 FROM shop_carriers WHERE channel_id=$1
         AND carrier='ghn' AND auto_config IS NOT NULL FOR SHARE`,channel.id),409,'Bật và lưu cấu hình tự tạo vận đơn GHN trước.');
-      await createShopOrder(channel.id,'',{code,quantity,...details},product,Date.now(),false,body.sendToGhn===true);
+      ensure(await createShopOrder(channel.id,'',{code,quantity,...details},product,Date.now(),false,body.sendToGhn===true),
+        409,'Page không còn đủ điều kiện tạo đơn.');
     });
     return json(res,200,{code});
   }
@@ -170,6 +173,7 @@ export class OrdersController {
   async verification(@Req() req: AppRequest, @Res() res: Response, @Query('channel') id: string,
     @Query('q') query?: string, @Query('before') cursor?: string) {
     const channel=await access(req.actor,string(id,50,{required:true}));
+    ensure(channel.page_purpose==='sales',403,'Page này đã ngừng nhận đơn mới.');
     const search=string(query,40);
     const position=string(cursor,40);
     const before=position?/^(\d{1,15}):([A-F0-9]{16})$/.exec(position):null;
@@ -206,6 +210,7 @@ export class OrdersController {
     const channel=await access(req.actor,string(body.channel,50,{required:true}));
     const code=string(body.code,16,{required:true}).toUpperCase();
     const action=choicesOf(body.action,['approve','reject']);
+    ensure(action==='reject'||channel.page_purpose==='sales',403,'Page này đã ngừng nhận đơn mới.');
     ensure(action==='reject'||body.verified===true,400,'Tích xác nhận đã xác minh khách hàng để lên đơn.');
     await transaction(async()=>{
       const identity=ensure(await get('SELECT sender_id FROM order_verifications WHERE channel_id=$1 AND code=$2',
@@ -226,11 +231,13 @@ export class OrdersController {
       const currentItems=await currentOrderItems(channel.id,cart);
       ensure(currentItems.every((line,index)=>line.available&&line.unit_price===cart[index].unit_price),409,
         'Sản phẩm đã đổi giá hoặc hết hàng. Hãy từ chối yêu cầu này và đề nghị khách đặt lại.');
-      const config=await get('SELECT order_templates,order_cases,message_bot_policy FROM channels WHERE id=$1 FOR SHARE',channel.id);
+      const config=ensure(await get(`SELECT order_templates,order_cases,message_bot_policy FROM channels
+        WHERE id=$1 AND page_purpose='sales' AND orders_enabled FOR SHARE`,channel.id),409,'Page này đã tắt chốt đơn.');
+      await requireOrderFeature(channel.shop_id);
       const now=Date.now();
       const values={code,customer:pending.customer};
       const notice=ensure(salesReply(checkoutTemplates(config.message_bot_policy,config.order_templates),'verified',values,config.message_bot_policy?.unifiedAgent?[]:config.order_cases),409,
-        'Thêm trường hợp Xác minh thành công trong cấu hình agent rồi duyệt lại.');
+        'Thêm trường hợp Xác minh thành công trong cấu hình bot rồi duyệt lại.');
       await run(`INSERT INTO verified_buyers(channel_id,sender_id,phone,verified_at) VALUES($1,$2,$3,$4)
         ON CONFLICT DO NOTHING`,channel.id,pending.sender_id,pending.phone,now);
       await run(`UPDATE order_verifications SET status='verified',notice=$3,approved_product_name=$4

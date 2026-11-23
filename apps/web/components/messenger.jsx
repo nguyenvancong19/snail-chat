@@ -105,14 +105,14 @@ function messagePreview(message) {
   return message.text||message.attachments?.[0]?.name||'Tin nhắn';
 }
 
-export function MessengerTimeline({ items, outbound=[], onQuote, selectedMid, focusMid, aiToolsEnabled, canRespond, latestId }) {
+export function MessengerTimeline({ items, outbound=[], onQuote, selectedMid, focusMid, aiToolsEnabled, canRespond, latestId, productReviewEnabled=true }) {
   const {intl,copy,t}=useDisplayLocale();
   const entries=(items??[]).toReversed().flatMap((message)=>{
     const reply=message.reply||message.replyAttachment;
     return [
       {key:message.id,mid:message.mid,by:'customer',text:message.text,created:message.created,
         attachments:message.attachments,quoteMid:message.quoteMid,botCategory:message.botCategory,
-        review:message.orderReview,status:message.status,paused:message.agentResumeAt>Date.now(),
+        review:productReviewEnabled?message.orderReview:null,status:message.status,paused:message.agentResumeAt>Date.now(),
         replyError:message.status!=='replied'?message.replyError:null},
       ...(message.greeting?[{key:message.id+'-greeting',mid:message.greetingMid,by:'page',label:'Lời chào tự động',
         text:message.greeting,created:message.created}]:[]),

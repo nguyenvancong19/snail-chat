@@ -381,7 +381,7 @@ function AdminTokenWallet(){
   </section>;
 }
 
-export function ServicePlans({ state, refreshWorkspace, notify, go }) {
+export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevision }) {
   const {copy,t,intl,translatedContent}=useDisplayLocale();
   const money=vnd(intl);
   const number=new Intl.NumberFormat(intl);
@@ -421,7 +421,7 @@ export function ServicePlans({ state, refreshWorkspace, notify, go }) {
     const timer=setInterval(refresh,15_000);
     window.addEventListener('focus',refresh);
     return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',refresh);};
-  },[shop,load]);
+  },[shop,load,accessRevision]);
 
   const scheduledAt=data?.scheduled?.starts_at;
   useEffect(()=>{
@@ -778,7 +778,7 @@ function PlanEditor({ plan, close, save }) {
   </Dialog>;
 }
 
-export function AdminBilling() {
+export function AdminBilling({ accessRevision }) {
   const {intl,copy}=useDisplayLocale();
   const money=vnd(intl);
   const [group,setGroup]=useState('daily');
@@ -792,7 +792,7 @@ export function AdminBilling() {
     const controller=new AbortController();
     load(controller.signal).catch((error)=>{if(!controller.signal.aborted)setError(error.message);});
     return ()=>controller.abort();
-  },[load]);
+  },[load,accessRevision]);
   async function save(form,benefits,feature_flags,term_prices,term_promotions) {
     const price=form.get('price_vnd');
     const adding=!editing.code;
