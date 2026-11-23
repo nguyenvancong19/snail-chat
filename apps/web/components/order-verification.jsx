@@ -44,7 +44,7 @@ export function CheckoutCases({ channel, saved, close, refresh }) {
   function update(id,fields) {
     setCases((current)=>current.map((rule)=>rule.id===id?{...rule,...fields}:rule));
   }
-  return <Dialog title={copy("Cấu hình bot chốt đơn")} close={close} label={copy("Lưu trường hợp")} submit={async()=>{
+  return <Dialog title={copy("Cấu hình agent chốt đơn")} close={close} label={copy("Lưu trường hợp")} submit={async()=>{
     await api('orders/cases','POST',{channel,aiMode,cases:cases.map(({event,match,reply})=>({event,match,reply}))});
     refresh();
   }}>

@@ -119,7 +119,7 @@ export function Login({ submit, resend, startRecovery=false,startRegistration=fa
   return <main className="auth-page">
     <section className="auth-promo"><Brand href="/"/><div className="auth-promo-copy">
       <span className="eyebrow">{copy("QUẢN LÝ TƯƠNG TÁC")}</span><h1>{copy("Trả lời khách hàng")}<br/>{copy("ngay trên SnailChat.")}</h1>
-      <p>{copy("Kết nối Facebook và Instagram, cấu hình bot phản hồi và theo dõi tương tác trên từng bài đăng.")}</p>
+      <p>{copy("Kết nối Facebook và Instagram, cấu hình agent phản hồi và theo dõi tương tác trên từng bài đăng.")}</p>
       <div className="auth-platforms"><PlatformIcon platform="fb"/><PlatformIcon platform="ig"/></div>
     </div><div className="auth-art"><img src="/hero.svg" alt=""/></div><div className="auth-caption">SNAILCHAT · FACEBOOK &amp; INSTAGRAM</div></section>
     <section className="auth-main"><div className="auth-inner"><div className="auth-brand"><Brand href="/"/></div>

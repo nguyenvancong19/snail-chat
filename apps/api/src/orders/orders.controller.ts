@@ -230,7 +230,7 @@ export class OrdersController {
       const now=Date.now();
       const values={code,customer:pending.customer};
       const notice=ensure(salesReply(checkoutTemplates(config.message_bot_policy,config.order_templates),'verified',values,config.message_bot_policy?.unifiedAgent?[]:config.order_cases),409,
-        'Thêm trường hợp Xác minh thành công trong cấu hình bot rồi duyệt lại.');
+        'Thêm trường hợp Xác minh thành công trong cấu hình agent rồi duyệt lại.');
       await run(`INSERT INTO verified_buyers(channel_id,sender_id,phone,verified_at) VALUES($1,$2,$3,$4)
         ON CONFLICT DO NOTHING`,channel.id,pending.sender_id,pending.phone,now);
       await run(`UPDATE order_verifications SET status='verified',notice=$3,approved_product_name=$4
