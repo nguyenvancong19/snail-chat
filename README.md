@@ -1,6 +1,6 @@
-# ReelDesk
+# SNAILCHAT
 
-ReelDesk quản lý bình luận trên Facebook Page và Instagram Professional, tin nhắn Messenger gửi tới Facebook Page và thống kê các bài đã xuất bản.
+SnailChat quản lý bình luận trên Facebook Page và Instagram Professional, tin nhắn Messenger gửi tới Facebook Page và thống kê các bài đã xuất bản.
 
 | Thành phần | Mã nguồn | Nhiệm vụ |
 | --- | --- | --- |
