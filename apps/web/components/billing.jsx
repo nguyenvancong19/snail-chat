@@ -177,8 +177,6 @@ const orderStatuses={PENDING:'Chờ thanh toán',PAID:'Đã thanh toán',REVIEW:
 const statusClass={PAID:'replied',REVIEW:'review',PENDING:'active',EXPIRED:'off',CANCELLED:'off',SCHEDULED:'active'};
 const clock=(minutes)=>Number.isInteger(minutes)?
   String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0'):'';
-const clockMinutes=(value)=>/^\d{2}:\d{2}$/.test(value)
-  ?Number(value.slice(0,2))*60+Number(value.slice(3)):null;
 function agentHours(plan,copy) {
   if(plan.agent_mode==='ALWAYS')return copy("Cả ngày (24/24)");
   if(plan.agent_mode==='SCHEDULED'){
@@ -655,11 +653,81 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
   </>;
 }
 
+const hours=Array.from({length:24},(_,hour)=>hour);
+const minutes=Array.from({length:60},(_,minute)=>minute);
+const schedulePresets=[['Ban ngày',360,1140],['Giờ hành chính',480,1020],['Qua đêm',1140,360]];
+
+function AgentTimeSelect({label,value,onChange,errorId,hourLabel,minuteLabel,minuteRef}) {
+  const hour=Math.floor(value/60);
+  const minute=value%60;
+  return <fieldset className="billing-agent-time">
+    <legend>{label}</legend>
+    <div className="billing-agent-time-parts">
+      <Field label={hourLabel}><select value={hour} onChange={(event)=>onChange(Number(event.target.value)*60+minute)}>
+        {hours.map((option)=><option value={option} key={option}>{String(option).padStart(2,'0')}</option>)}
+      </select></Field>
+      <Field label={minuteLabel}><select ref={minuteRef} value={minute} aria-invalid={errorId?true:undefined}
+        aria-describedby={errorId} onChange={(event)=>onChange(hour*60+Number(event.target.value))}>
+        {minutes.map((option)=><option value={option} key={option}>{String(option).padStart(2,'0')}</option>)}
+      </select></Field>
+    </div>
+  </fieldset>;
+}
+
+function AgentScheduleEditor({plan,enabled}) {
+  const {copy}=useDisplayLocale();
+  const id=useId();
+  const [mode,setMode]=useState(plan.agent_mode==='SCHEDULED'?'SCHEDULED':'ALWAYS');
+  const [start,setStart]=useState(plan.agent_start??360);
+  const [end,setEnd]=useState(plan.agent_end??1140);
+  const endMinute=useRef(null);
+  const scheduled=enabled&&mode==='SCHEDULED';
+  const error=scheduled&&start===end?copy('Giờ kết thúc phải khác giờ bắt đầu. Chọn Cả ngày để Agent chạy 24/24.'):'';
+  useEffect(()=>{endMinute.current?.setCustomValidity(error);},[error,scheduled]);
+
+  if(!enabled)return null;
+  const preview=agentHours({agent_mode:mode,agent_start:start,agent_end:end},copy);
+  return <fieldset className="billing-resource-choice billing-agent-schedule">
+    <legend>{copy('Lịch AI agent')}</legend>
+    <p className="billing-agent-zone dim">{copy('Giờ Việt Nam (UTC+7)')}</p>
+    <div className="billing-agent-modes">
+      {[['ALWAYS','Cả ngày (24/24)'],['SCHEDULED','Theo khung giờ mỗi ngày']].map(([value,label])=>
+        <label className="billing-checkbox billing-agent-mode" key={value}>
+          <input type="radio" name="agent_mode" value={value} checked={mode===value} onChange={()=>setMode(value)}/>
+          {copy(label)}
+        </label>)}
+    </div>
+    {scheduled&&<>
+      <div className="billing-agent-presets" role="group" aria-label={copy('Khung giờ gợi ý')}>
+        {schedulePresets.map(([label,from,to])=>{
+          const selected=from===start&&to===end;
+          return <Button key={label} variant={selected?'primary':'subtle'} aria-pressed={selected} onClick={()=>{
+            setStart(from);
+            setEnd(to);
+          }}><span>{copy(label)}</span><span className="billing-agent-clock">{clock(from)}–{clock(to)}</span></Button>;
+        })}
+      </div>
+      <div className="billing-agent-times">
+        <AgentTimeSelect label={copy('Giờ bắt đầu')} value={start} onChange={setStart}
+          hourLabel={copy('Giờ')} minuteLabel={copy('Phút')}/>
+        <AgentTimeSelect label={copy('Giờ kết thúc')} value={end} onChange={setEnd}
+          hourLabel={copy('Giờ')} minuteLabel={copy('Phút')} minuteRef={endMinute} errorId={error?id+'-error':undefined}/>
+      </div>
+      <input type="hidden" name="agent_start" value={start}/>
+      <input type="hidden" name="agent_end" value={end}/>
+    </>}
+    <div className="billing-agent-preview" role="status" aria-atomic="true">
+      <Icon name="clock"/>
+      {error?<span className="formerror" id={id+'-error'}>{error}</span>:<span><strong>{preview}</strong></span>}
+    </div>
+    {scheduled&&<p className="dim">{copy('Tin đến ngoài ca vẫn có trong hộp thư để shop xử lý thủ công.')}</p>}
+  </fieldset>;
+}
+
 function PlanEditor({ plan, close, save }) {
   const {copy,locale,intl,translatedContent}=useDisplayLocale();
   const number=new Intl.NumberFormat(intl);
   const adding=!plan.code, free=plan.code==='FREE';
-  const [mode,setMode]=useState(plan.agent_mode==='OFF'?'ALWAYS':plan.agent_mode??'ALWAYS');
   const [features,setFeatures]=useState(()=>Object.fromEntries(planFeatures.map(([key])=>[key,plan.feature_flags?.[key]??(!plan.feature_flags&&(key==='messages'||key==='comments'))])));
   const [prices,setPrices]=useState(plan.term_prices??{});
   const [periods,setPeriods]=useState(()=>new Set(plan.term_prices&&Object.keys(plan.term_prices).length?
@@ -709,17 +777,8 @@ function PlanEditor({ plan, close, save }) {
           {copy(label)}
         </label>)}
       </div>
-      {features.agent&&<><Field label={copy("Lịch AI agent")}><select name="agent_mode" value={mode} onChange={(event)=>setMode(event.target.value)}>
-        <option value="SCHEDULED">{copy("Theo khung giờ mỗi ngày")}</option>
-        <option value="ALWAYS">{copy("Cả ngày (24/24)")}</option>
-      </select></Field>
-      {mode==='SCHEDULED'&&<div className="form-grid">
-        <Field label={copy("Giờ bắt đầu")}><input type="time" name="agent_start" required defaultValue={clock(plan.agent_start)||'06:00'}/></Field>
-        <Field label={copy("Giờ kết thúc")}><input type="time" name="agent_end" required defaultValue={clock(plan.agent_end)||'19:00'}/></Field>
-      </div>}
-      <p className="dim">{copy("Giờ Việt Nam. Nếu giờ kết thúc sớm hơn giờ bắt đầu, ca kéo dài sang hôm sau. Tin đến ngoài ca vẫn có trong hộp thư để shop xử lý thủ công.")}</p>
-      </>}
     </fieldset>
+    <AgentScheduleEditor plan={plan} enabled={features.agent}/>
     {!free&&<fieldset className="billing-resource-choice">
       <legend>{copy('Chu kỳ và giá')}</legend>
       {!preset?<>
@@ -801,7 +860,9 @@ export function AdminBilling({ accessRevision }) {
       name:form.get('name'),description:form.get('description'),page_limit:Number(form.get('page_limit')),
       staff_limit:Number(form.get('staff_limit')),duration_days:Number(form.get('duration_days')),
       price_vnd:price===''||price===null?null:Number(price),available:form.has('available'),
-      agent_mode:feature_flags.agent?form.get('agent_mode'):'OFF',agent_start:clockMinutes(form.get('agent_start')),agent_end:clockMinutes(form.get('agent_end')),
+      agent_mode:feature_flags.agent?form.get('agent_mode'):'OFF',
+      agent_start:form.has('agent_start')?Number(form.get('agent_start')):null,
+      agent_end:form.has('agent_end')?Number(form.get('agent_end')):null,
       order_management:feature_flags.orders,feature_flags,benefits,term_promotions,
       ai_5h_tokens:Number(form.get('ai_5h_tokens')),ai_week_tokens:Number(form.get('ai_week_tokens')),
       ai_reset_limit:Number(form.get('ai_reset_limit')),

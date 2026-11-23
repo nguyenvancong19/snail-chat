@@ -531,6 +531,30 @@ dialog:has(.order-print-frame){width:min(960px,calc(100vw - 24px))}
 .billing-custom-total { border-top:1px solid var(--line); padding-top:10px; }
 .billing-custom-total strong { font-size:1.14rem; }
 .billing-plan-editor { margin:20px 0; scroll-margin-top:20px; }
+.billing-agent-schedule {gap:12px;min-width:0;}
+.billing-agent-schedule > p {margin:0;}
+.billing-agent-modes,.billing-agent-times {
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:10px;
+}
+.billing-agent-schedule .billing-agent-mode {
+  min-height:44px;padding:8px 12px;border:1px solid var(--line);cursor:pointer;font-weight:650;
+}
+.billing-agent-mode:has(:checked) {border-color:var(--control-accent);}
+.billing-agent-mode input {accent-color:var(--control-accent);}
+.billing-agent-presets {display:flex;gap:8px;flex-wrap:wrap;}
+.billing-agent-presets .button {min-height:44px;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 8px;}
+.billing-agent-clock,.billing-agent-preview strong {font-variant-numeric:tabular-nums;}
+.billing-agent-time {min-width:0;margin:0;padding:8px 12px 12px;border:1px solid var(--line);border-radius:9px;}
+.billing-agent-time legend {padding:0 4px;}
+.billing-agent-time-parts {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.billing-agent-time-parts .field {margin:0;}
+.billing-agent-time-parts select {width:100%;min-height:44px;}
+.billing-agent-preview {
+  min-height:44px;display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:var(--control-fill);border:1px solid var(--line);border-radius:9px;
+}
+.billing-agent-preview .icon {flex:none;color:var(--control-accent);}
+.billing-agent-preview .formerror {margin:0;}
 .billing-feature-grid, .billing-term-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr)); gap:8px; }
 .billing-admin-term { min-width:0; border:1px solid var(--line); border-radius:9px; padding:8px; }
 @media (max-width:700px) {
