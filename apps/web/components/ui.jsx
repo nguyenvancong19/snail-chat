@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useDisplayLocale } from '../lib/display-locale.jsx';
 import { screenTitle } from '../lib/locale.js';
 import { activeShop } from '../lib/workspace.js';
@@ -27,6 +28,30 @@ export function PlatformIcon({ platform }) {
 export function Field({label,children}) {
   const {copy}=useDisplayLocale();
   return <label className="field">{copy(label)}{children}</label>;
+}
+export function FilePicker({label,onChange,...props}) {
+  const {copy}=useDisplayLocale();
+  const input=useRef(null);
+  const [name,setName]=useState('');
+  useEffect(()=>{
+    const form=input.current?.form;
+    const reset=()=>setName('');
+    form?.addEventListener('reset',reset);
+    return ()=>form?.removeEventListener('reset',reset);
+  },[]);
+  return <div className="field">
+    <span>{label}</span>
+    <div className="localized-file-picker">
+      <span className="button localized-file-action">
+        <span aria-hidden="true">{copy('Chọn tệp')}</span>
+        <input {...props} ref={input} type="file" aria-label={label} onChange={(event)=>{
+          setName(event.target.files?.[0]?.name??'');
+          onChange?.(event);
+        }}/>
+      </span>
+      <span className="localized-file-name" role="status">{name||copy('Chưa chọn tệp')}</span>
+    </div>
+  </div>;
 }
 export function MetricGrid({ metrics }) {
   const {t}=useDisplayLocale();

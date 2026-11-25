@@ -4,6 +4,7 @@ import { AgentUsage, allowanceLabels } from './agent-usage.jsx';
 import { ListPagination, useListPage } from './list-pagination.jsx';
 
 import { useDisplayLocale } from '../lib/display-locale.jsx';
+import { planDisplayName } from '../lib/locale.js';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { api, formatDate } from '../lib/workspace.js';
@@ -380,7 +381,7 @@ function AdminTokenWallet(){
 }
 
 export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevision }) {
-  const {copy,t,intl,translatedContent}=useDisplayLocale();
+  const {copy,t,locale,intl,translatedContent}=useDisplayLocale();
   const money=vnd(intl);
   const number=new Intl.NumberFormat(intl);
   const owned=(state.shops??[]).filter((shop)=>shop.role==='OWNER'&&(!state.activeShopId||state.activeShopId===shop.id));
@@ -521,7 +522,7 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
     {details&&<>
       <section className="billing-summary" aria-label={t('shopLimits')}>
         <div><strong>{owned.find(({id})=>id===shop)?.name}</strong>
-          <span>{details.shop.planName}{details.shop.planArchived?copy(" · Ngừng bán"):''}</span>
+          <span>{planDisplayName(locale,details.shop.plan,details.shop.planName)}{details.shop.planArchived?copy(" · Ngừng bán"):''}</span>
           <span>{details.shop.status==='SUSPENDED'?copy("Shop đang bị khóa"):elapsed?copy("Gói đã hết hạn"):expires?(copy("Có hiệu lực đến ")+formatDate(expires,intl)):copy("Gói không thời hạn")}</span></div>
         <div><strong>{details.usage.pages}/{details.limits.pages}</strong><span>{t('usedChannels')}</span></div>
         <div><strong>{details.usage.staff+details.usage.invitations}/{details.limits.staff}</strong><span>{t('staffSlots')}{details.usage.invitations>0?copy(" · gồm lời mời chờ"):''}</span></div>
@@ -566,7 +567,7 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
         const capacity=[['channels',plan.page_limit,'Page/kênh',previous?.page_limit],
           ['user',plan.staff_limit,'chỗ nhân viên',previous?.staff_limit]];
         return <article className={'billing-plan billing-plan-'+plan.code.toLowerCase()} key={plan.code}>
-          <div className="billing-plan-top"><h3>{plan.name}</h3>
+          <div className="billing-plan-top"><h3>{planDisplayName(locale,plan.code,plan.name)}</h3>
             {current&&<span className="billing-current"><Icon name="check"/> {t('inUse')}</span>}
           </div>
           {promotion?<PromotionPrice {...{promotion,period,money,copy,intl}}/>:
@@ -576,22 +577,22 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
           <p className="billing-description">{translatedContent('p:'+plan.code+':description',plan.description)}</p>
           <div className="billing-plan-action">{free?<span className="billing-included">{t(current?'currentPlan':'defaultPlan')}</span>:
             blocked?<span className="billing-included">{copy(plan.quote.reason)}</span>:<Button variant={reason?'':'primary'} data-restricted={reason?'true':undefined}
-              aria-label={action+' '+plan.name} disabled={busy} onClick={()=>choosePlan(purchase,reason)}>
+              aria-label={action+' '+planDisplayName(locale,plan.code,plan.name)} disabled={busy} onClick={()=>choosePlan(purchase,reason)}>
               {action}<Icon name={reason?'lock':'arrow'}/>
             </Button>}
           </div>
           <div className="billing-plan-includes">
-            <h4>{previous?t('planLimits',{plan:plan.name}):t('baseLimits')}</h4>
+            <h4>{previous?t('planLimits',{plan:planDisplayName(locale,plan.code,plan.name)}):t('baseLimits')}</h4>
             <ul>
               {capacity.map(([icon,value,label,before])=><li key={icon}><Icon name={icon}/>
                 <span><strong>{value}</strong> {copy(label)}</span>
-                {before!==undefined&&value!==before&&<small>{value>before?'+':''}{value-before} {copy("so với")} {previous.name}</small>}
+                {before!==undefined&&value!==before&&<small>{value>before?'+':''}{value-before} {copy("so với")} {planDisplayName(locale,previous.code,previous.name)}</small>}
               </li>)}
               {planFeatures.filter(([key])=>key!=='alertSounds'||plan.feature_flags.alertSounds===true).map(([key,label])=><li key={key} className={plan.feature_flags[key]?'':'billing-feature-off'}>
                 <Icon name={plan.feature_flags[key]?'check':'x'}/>
                 <span>{copy(label)}{key==='agent'&&plan.feature_flags.agent?' · '+agentHours(plan,copy):''}</span>
                 {!plan.feature_flags[key]?<small>{copy('Không bao gồm')}</small>:
-                  previous&&!previous.feature_flags[key]?<small>{copy("Thêm so với")} {previous.name}</small>:null}
+                  previous&&!previous.feature_flags[key]?<small>{copy("Thêm so với")} {planDisplayName(locale,previous.code,previous.name)}</small>:null}
               </li>)}
               {plan.aiAllowance&&Object.entries(allowanceLabels).map(([kind,label])=><li key={kind}>
                 <Icon name="bot"/><span>{copy(label)}</span>
@@ -602,7 +603,7 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
               {plan.benefits.map((benefit,index)=><li key={index}><Icon name="check"/>
                 <span><strong>{translatedContent('p:'+plan.code+':name:'+index,benefit.name)}</strong>{benefit.description&&' · '+translatedContent('p:'+plan.code+':detail:'+index,benefit.description)}</span>
                 {previous&&!previous.benefits.some((item)=>item.name.toLowerCase()===benefit.name.toLowerCase())&&
-                  <small>{copy("Thêm so với")} {previous.name}</small>}
+                  <small>{copy("Thêm so với")} {planDisplayName(locale,previous.code,previous.name)}</small>}
               </li>)}
             </ul>
           </div>
@@ -625,7 +626,7 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
       <section className="card shop-table"><h2 className="billing-table-heading">{t('paymentHistory')}</h2>
         {!details.orders.length?<Empty>{copy("Chưa có đơn thanh toán.")}</Empty>:<table>
           <thead><tr><th>{copy("Mã thanh toán")}</th><th>{copy("Gói")}</th><th>{copy("Số tiền")}</th><th>{t('status')}</th><th>{copy("Ngày tạo")}</th><th></th></tr></thead>
-          <tbody>{details.orders.map((entry)=><tr key={entry.id}><td>{entry.id}</td><td>{entry.plan_name}</td>
+          <tbody>{details.orders.map((entry)=><tr key={entry.id}><td>{entry.id}</td><td>{planDisplayName(locale,entry.plan_code,entry.plan_name)}</td>
             <td>{money(entry.price_vnd)}</td><td><Chip status={statusClass[entry.status]}>{copy(orderStatuses[entry.status])}</Chip></td>
             <td>{formatDate(entry.created_at,intl)}</td><td><Button disabled={busy} onClick={()=>openOrder(entry.id)}>{entry.status==='PENDING'?copy("Mở mã QR"):copy("Xem chi tiết")}</Button></td></tr>)}</tbody>
         </table>}

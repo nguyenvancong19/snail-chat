@@ -4,7 +4,7 @@ import { ListPagination, useListPage } from './list-pagination.jsx';
 
 import { useEffect, useState } from 'react';
 import { api, formatDate } from '../lib/workspace.js';
-import { Button, Field, Title } from './ui.jsx';
+import { Button, Field, FilePicker, Title } from './ui.jsx';
 import { Dialog } from './forms.jsx';
 import { Icon } from './icons.jsx';
 import { useDisplayLocale } from '../lib/display-locale.jsx';
@@ -40,7 +40,7 @@ export function AccountAvatar({ user }) {
 }
 
 function ShopNameForm({ settings, refreshWorkspace }) {
-  const {intl,copy}=useDisplayLocale();
+  const {intl,copy,t}=useDisplayLocale();
   const [busy,setBusy]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false);
   const locked=settings.nextRenameAt!==null&&settings.nextRenameAt>Date.now();
   async function submit(event) {
@@ -59,8 +59,8 @@ function ShopNameForm({ settings, refreshWorkspace }) {
   return <form className="card settings-card shop-name-settings" onSubmit={submit}>
     <h2>{copy("Đổi tên Shop")}</h2>
     <Field label={copy("Tên Shop")}><input key={settings.name} name="name" defaultValue={settings.name} maxLength={100} required readOnly={locked}/></Field>
-    <p className="dim">{locked?copy("Có thể đổi lại từ ")+formatDate(settings.nextRenameAt,intl)+copy(" (giờ Việt Nam)."):
-      settings.cooldownDays?copy("Cần chờ ")+settings.cooldownDays+copy(" ngày giữa hai lần đổi tên."):copy("Shop có thể đổi tên bất cứ lúc nào.")}</p>
+    <p className="dim">{locked?t('renameAvailableAt',{date:formatDate(settings.nextRenameAt,intl)}):
+      settings.cooldownDays?t('renameCooldown',{days:new Intl.NumberFormat(intl).format(settings.cooldownDays)}):t('renameAnytime')}</p>
     {error&&<p className="formerror" role="alert">{copy(error)}</p>}
     {saved&&<p className="notice" role="status">{copy("Đã lưu tên Shop.")}</p>}
     <Button type="submit" variant="primary" disabled={busy||locked}>{copy("Lưu tên Shop")}</Button>
@@ -112,7 +112,7 @@ export function AccountSettings({state,refreshWorkspace,workspaceTab,go,save,not
     <div className="settings-layout">
       <form className="card settings-card" onSubmit={(event)=>submit(event,true)}>
         <h2>{t('avatar')}</h2><AccountAvatar user={user}/>
-        <Field label={t('chooseAvatar')}><input name="avatar" type="file" accept="image/jpeg,image/png,image/webp" required/></Field>
+        <FilePicker label={t('chooseAvatar')} name="avatar" accept="image/jpeg,image/png,image/webp" required/>
         <p className="dim">{copy("JPG, PNG hoặc WebP tĩnh, tối đa 2 MB và 16 megapixel.")}</p>
         <Button type="submit" variant="primary" disabled={busy}>{t('changeAvatar')}</Button>
       </form>

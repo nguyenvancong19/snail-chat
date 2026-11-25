@@ -9,6 +9,10 @@ export const locales = {
 };
 
 const rows = {
+  renameAvailableAt:['Có thể đổi lại từ {date} (giờ Việt Nam).','You can rename your shop again on {date} (Vietnam time).','{date}(베트남 시간)부터 상점 이름을 다시 변경할 수 있습니다.','{date}（ベトナム時間）からショップ名を再変更できます。','您可以在 {date}（越南时间）后再次更改店铺名称。','เปลี่ยนชื่อร้านได้อีกครั้งตั้งแต่ {date} (เวลาเวียดนาม)','ປ່ຽນຊື່ຮ້ານໄດ້ອີກຄັ້ງຕັ້ງແຕ່ {date} (ເວລາຫວຽດນາມ).'],
+  renameCooldown:['Cần chờ {days} ngày giữa hai lần đổi tên.','Wait {days} days between shop name changes.','상점 이름을 변경한 후 {days}일이 지나야 다시 변경할 수 있습니다.','ショップ名を変更するには前回の変更から{days}日待つ必要があります。','两次更改店铺名称之间需间隔 {days} 天。','ต้องรอ {days} วันระหว่างการเปลี่ยนชื่อร้านแต่ละครั้ง','ຕ້ອງລໍຖ້າ {days} ມື້ລະຫວ່າງການປ່ຽນຊື່ຮ້ານ.'],
+  renameAnytime:['Shop có thể đổi tên bất cứ lúc nào.','You can rename your shop at any time.','언제든지 상점 이름을 변경할 수 있습니다.','ショップ名はいつでも変更できます。','您可以随时更改店铺名称。','คุณสามารถเปลี่ยนชื่อร้านได้ทุกเมื่อ','ທ່ານປ່ຽນຊື່ຮ້ານໄດ້ທຸກເວລາ.'],
+  freePlan:['Miễn phí','Free','무료','無料','免费','ฟรี','ຟຣີ'],
   workspace:['Không gian làm việc','Workspace','워크스페이스','ワークスペース','工作区','พื้นที่ทำงาน','ພື້ນທີ່ເຮັດວຽກ'],
   dashboard:['Tổng quan','Overview','개요','概要','概览','ภาพรวม','ພາບລວມ'],
   orders:['Đơn hàng','Orders','주문','注文','订单','คำสั่งซื้อ','ຄຳສັ່ງຊື້'],
@@ -152,7 +156,7 @@ const rows = {
   orderChart:["Đơn hàng theo ngày", "Orders by day", "일별 주문", "日別の注文", "每日订单", "คำสั่งซื้อรายวัน", "ຄຳສັ່ງຊື້ລາຍວັນ"],
   orderCount:["Số đơn", "Order count", "주문 수", "注文数", "订单数", "จำนวนคำสั่งซื้อ", "ຈຳນວນຄຳສັ່ງຊື້"],
   total:["Tổng số", "Total", "합계", "合計", "总计", "รวม", "ລວມ"],
-  botOrders:["Đơn do agent tạo", "Orders created by bot", "봇이 만든 주문", "ボットが作成した注文", "机器人创建的订单", "คำสั่งซื้อที่บอทสร้าง", "ຄຳສັ່ງຊື້ທີ່ບອດສ້າງ"],
+  botOrders:["Đơn do bot tạo", "Orders created by bot", "봇이 만든 주문", "ボットが作成した注文", "机器人创建的订单", "คำสั่งซื้อที่บอทสร้าง", "ຄຳສັ່ງຊື້ທີ່ບອດສ້າງ"],
   conversion:["Khách hỏi rồi mua", "Inquiries converted", "문의 후 구매", "問い合わせ後に購入", "咨询后购买", "สอบถามแล้วซื้อ", "ສອບຖາມແລ້ວຊື້"],
   bought:["Đã mua", "Purchased", "구매함", "購入済み", "已购买", "ซื้อแล้ว", "ຊື້ແລ້ວ"],
   notBought:["Chưa mua", "Did not purchase", "미구매", "未購入", "未购买", "ยังไม่ซื้อ", "ຍັງບໍ່ຊື້"],
@@ -162,7 +166,7 @@ const rows = {
   messagesHeading:["Tin nhắn Messenger", "Messenger messages", "Messenger 메시지", "Messenger メッセージ", "Messenger 消息", "ข้อความ Messenger", "ຂໍ້ຄວາມ Messenger"],
   postStats:["Thống kê bài đăng", "Post analytics", "게시물 분석", "投稿分析", "帖子统计", "สถิติโพสต์", "ສະຖິຕິໂພສ"],
   managePlansHeading:["Quản lý gói dịch vụ", "Manage service plans", "서비스 요금제 관리", "サービスプラン管理", "管理服务套餐", "จัดการแพ็กเกจบริการ", "ຈັດການແພັກເກດບໍລິການ"],
-  botHeading:["Cấu hình agent", "Agent configuration", "봇 설정", "ボット設定", "机器人设置", "ตั้งค่าบอท", "ຕັ້ງຄ່າບອດ"],
+  botHeading:["Cấu hình bot", "Bot configuration", "봇 설정", "ボット設定", "机器人设置", "ตั้งค่าบอท", "ຕັ້ງຄ່າບອດ"],
   noPeriodData:["Chưa ghi nhận dữ liệu trong khoảng thời gian này.", "No data was recorded in this period.", "이 기간에 기록된 데이터가 없습니다.", "この期間のデータはありません。", "此时间段内没有记录。", "ไม่มีข้อมูลในช่วงเวลานี้", "ບໍ່ມີຂໍ້ມູນໃນຊ່ວງເວລານີ້."],
   noChartData:["Chưa có dữ liệu", "No data", "데이터 없음", "データなし", "暂无数据", "ไม่มีข้อมูล", "ບໍ່ມີຂໍ້ມູນ"],
   remaining:["Còn lại", "Remaining", "나머지", "残り", "其余", "ที่เหลือ", "ທີ່ເຫຼືອ"],
@@ -317,6 +321,13 @@ export function message(locale,key,values) {
   return values?label.replace(/\{(\w+)\}/g,(template,name)=>Object.hasOwn(values,name)?values[name]:template):label;
 }
 
+
+export const isDisplayLocale=(value)=>Object.hasOwn(locales,value);
+
+export function planDisplayName(locale,code,name) {
+  if((!code||code==='FREE')&&(name==='Miễn phí'||(!name&&code==='FREE')))return message(locale,'freePlan');
+  return name||code||'';
+}
 
 // Legacy static screen headings still use their Vietnamese label as a stable lookup.
 const screenTitles=new Map([

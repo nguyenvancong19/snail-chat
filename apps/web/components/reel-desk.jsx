@@ -10,8 +10,8 @@ import { AdminOpenRouter } from './openrouter.jsx';
 import { useSystemTheme } from './theme.jsx';
 import { appearancePreferences, effectiveTheme, themeStyle } from '../lib/appearance.js';
 import { displayCopy, useDisplayCatalog } from '../lib/display-catalog.jsx';
-import { DisplayLocale, DisplayCatalog } from '../lib/display-locale.jsx';
-import { message } from '../lib/locale.js';
+import { DisplayLocale, DisplayCatalog, useDeviceDisplayLocale } from '../lib/display-locale.jsx';
+import { message, planDisplayName } from '../lib/locale.js';
 import { agentSounds, claimAgentAlert, deviceSoundOn, playAgentSound, soundRequest, unlockAgentAudio } from '../lib/agent-alert-sounds.js';
 import { Orders } from './orders.jsx';
 import { AlertToast, useWorkspaceAlerts } from './workspace-alerts.jsx';
@@ -44,6 +44,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   const [accessRevision,setAccessRevision]=useState(0);
   const [changingAccount,setChangingAccount]=useState(false);
   const [switching,setSwitching]=useState(false), [pendingAlert,setPendingAlert]=useState(null);
+  const deviceLocale=useDeviceDisplayLocale();
   const [appearance,setAppearance]=useState(null),[appearanceTrial,setAppearanceTrial]=useState(null);
   const systemDark=useSystemTheme();
   const accountId=workspace?.user?.id;
@@ -53,7 +54,11 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   },[accountId]);
   const savedAppearance=appearancePreferences(workspace?.theme);
   const appearanceDraft=accountId&&appearance?.accountId===accountId?appearance.draft:savedAppearance;
-  const locale=appearanceDraft.locale;
+  const locale=accountId?appearanceDraft.locale:deviceLocale;
+  useEffect(()=>{
+    if(!accountId)return;
+    try{window.localStorage.setItem('snailchat.displayLocale',savedAppearance.locale);}catch{}
+  },[accountId,savedAppearance.locale]);
   const displayCatalog=useDisplayCatalog(locale,!!workspace?.user);
   const copy=(source)=>displayCopy(locale,displayCatalog,source);
   const t=(key)=>message(locale,key);
@@ -380,7 +385,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
     ? <><p>{copy(problem)}</p><Button onClick={()=>window.location.reload()}>{copy("Tải lại")}</Button></>
     : copy("Đang mở SnailChat…")}</main>;
   const toast=notice&&<div id="toast" className="show" role="status">{copy(notice)}</div>;
-  if(loginArea&&!workspace.user)return <><Login key={view} startRecovery={view==='forgot-password'} startRegistration={view==='register'} submit={login} resend={(body)=>api('resend-verification','POST',body)}/>{toast}</>;
+  if(loginArea&&!workspace.user)return <DisplayLocale.Provider value={locale}><DisplayCatalog.Provider value={displayCatalog}><Login key={view} startRecovery={view==='forgot-password'} startRegistration={view==='register'} submit={login} resend={(body)=>api('resend-verification','POST',body)}/>{toast}</DisplayCatalog.Provider></DisplayLocale.Provider>;
   const admin=workspace.user?.isSuperAdmin===true;
   if(!workspace.user||loginArea||adminArea!==admin)return <main className="loading" role="status">{copy("Đang mở SnailChat…")}</main>;
   const owner=workspace.memberRole==='OWNER';
@@ -417,12 +422,14 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
     const localizedKey=key==='dashboard'&&admin?'adminShops':key==='billing'&&admin?'adminBilling':
       key==='bot-knowledge'&&!faq?'quickReplies':key==='bot-knowledge'&&!quickReplies?'faq':key==='settings'?'accountSettings':key==='system'?'systemStats':key;
     const translated=t(localizedKey);
-    return translated===localizedKey?fallback:translated;
+    return translated===localizedKey?copy(fallback):translated;
   };
   const label=navLabel(id,originalLabel);
   const workspaceTab=activeView&&(view!=='catalog'||catalog)?view:id;
   const currentShop=workspace.shops?.find((shop)=>shop.id===workspace.activeShopId);
-  const shopLabel=admin?'Super Admin':currentShop?.planName??(currentShop?'Gói '+currentShop.subscriptionPlan:'Chưa chọn Shop');
+  const shopLabel=admin?'Super Admin':currentShop
+    ?planDisplayName(locale,currentShop.subscriptionPlan,currentShop.planName)
+    :copy('Chưa chọn Shop');
   const shopOptions=workspace.shops??[];
   const section=t(admin?'platformAdmin':'yourWorkspace');
   const counts=Object.values(workspace.stats);

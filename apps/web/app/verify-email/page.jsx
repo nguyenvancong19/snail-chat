@@ -1,10 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { displayCopy } from '../../lib/display-catalog.jsx';
+import { useDeviceDisplayLocale } from '../../lib/display-locale.jsx';
 import { api } from '../../lib/workspace.js';
 import { Brand } from '../../components/ui.jsx';
 
 export default function VerifyEmail() {
+  const locale=useDeviceDisplayLocale();
+  const copy=(source)=>displayCopy(locale,null,source);
+  useEffect(()=>{document.documentElement.lang=locale;},[locale]);
   const requested=useRef(false);
   const [result,setResult]=useState(null);
   useEffect(()=>{
@@ -28,10 +33,10 @@ export default function VerifyEmail() {
     <section className="auth-inner">
       <Brand/>
       <div role="status">
-        <h1>{!result?'Đang xác minh email…':result.ok?'Email đã được xác nhận':'Chưa xác minh được email'}</h1>
-        {result&&<p className="auth-intro">{result.ok?'Vui lòng đăng nhập để trải nghiệm SnailChat.':result.error}</p>}
+        <h1>{copy(!result?'Đang xác minh email…':result.ok?'Email đã được xác nhận':'Chưa xác minh được email')}</h1>
+        {result&&<p className="auth-intro">{copy(result.ok?'Vui lòng đăng nhập để trải nghiệm SnailChat.':result.error)}</p>}
       </div>
-      {result&&<a href="/login" className="button primary">Về màn đăng nhập</a>}
+      {result&&<a href="/login" className="button primary">{copy("Về màn đăng nhập")}</a>}
     </section>
   </main>;
 }

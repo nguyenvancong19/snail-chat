@@ -8,7 +8,7 @@ import { useDisplayLocale } from '../lib/display-locale.jsx';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { activityLabels, api, formatDate } from '../lib/workspace.js';
 import { BotReplyPicker, Dialog } from './forms.jsx';
-import { Button, Field } from './ui.jsx';
+import { Button, Field, FilePicker } from './ui.jsx';
 
 const templatesPath=(channel)=>'messenger/templates?'+new URLSearchParams({channel});
 const fileExtensions='.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.pdf,.txt,.csv,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
@@ -64,10 +64,10 @@ export function TemplatesEditor({ channel, onChange=()=>{} }) {
         onChange={(event)=>setCommand(event.target.value)}/></Field>
       <Field label={copy("Nội dung mẫu")}><textarea value={text} maxLength={1000} rows={4} disabled={!!image}
         onChange={(event)=>setText(event.target.value)}/></Field>
-      <Field label={copy("Hoặc chọn ảnh mẫu (ví dụ mã QR)")}><input type="file" accept=".png,.jpg,.jpeg,.webp,.gif" onChange={(event)=>{
+      <FilePicker label={copy("Hoặc chọn ảnh mẫu (ví dụ mã QR)")} accept=".png,.jpg,.jpeg,.webp,.gif" onChange={(event)=>{
         const file=event.target.files?.[0];event.target.value='';
         if(file){setImage(file);setImageName(file.name);setText('');}
-      }}/></Field>
+      }}/>
       {imageName&&<p className="dim">{copy("Ảnh mẫu:")} {imageName}</p>}
       {problem&&<p className="formerror" role="alert">{copy(problem)}</p>}
       <div className="action-row">
@@ -146,10 +146,10 @@ export function MessengerTimeline({ items, outbound=[], onQuote, selectedMid, fo
           <small>{quoted?.by==='page'?'Page':quoted?.by==='customer'?copy("Khách"):copy("Tin được trích dẫn")}</small>
           {quoted&&<p>{messagePreview(quoted)}</p>}
         </blockquote>}
-        {aiToolsEnabled===true&&entry.botCategory&&<small className="bot-category">{entry.botCategory}</small>}
+        {aiToolsEnabled===true&&entry.botCategory&&<small className="bot-category">{copy(entry.botCategory)}</small>}
         {entry.text&&<p>{entry.text}</p>}
         <MessageAttachments attachments={entry.attachments}/>
-        {entry.replyError&&(!entry.review||entry.review.decision)&&<p className="notice">{entry.replyError}</p>}
+        {entry.replyError&&(!entry.review||entry.review.decision)&&<p className="notice">{copy(entry.replyError)}</p>}
       </div>
       {entry.review&&<AgentProductReview id={entry.key} review={entry.review}
         {...{canRespond}} status={entry.status} paused={entry.paused} latest={entry.key===latestId}/>}

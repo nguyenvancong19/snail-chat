@@ -5,7 +5,7 @@ import { useDisplayLocale } from '../lib/display-locale.jsx';
 import { useEffect, useId, useRef, useState } from 'react';
 import { acknowledgementTemplates, decideBotReply, renderBotReply, validateBotPolicy } from '@reeldesk/bot-rules';
 import { channelIdentity } from '../lib/workspace.js';
-import { Brand, Button, Field, PlatformIcon } from './ui.jsx';
+import { Brand, Button, Field, FilePicker, PlatformIcon } from './ui.jsx';
 import { AiDraft } from './openrouter.jsx';
 import { Icon } from './icons.jsx';
 
@@ -342,7 +342,7 @@ export function BotForm({ channel, post, messaging=false, close, save, inline=fa
         </Field>
         <Field label={copy("Hướng dẫn của shop (.md)")}><textarea rows={7} maxLength={8000}
           value={agentMarkdown} onChange={(event)=>setAgentMarkdown(event.target.value)}/></Field>
-        <Field label={copy("Nhập từ tệp Markdown")}><input type="file" accept=".md,.markdown,text/markdown"
+        <FilePicker label={copy("Nhập từ tệp Markdown")} accept=".md,.markdown,text/markdown"
           onChange={async(event)=>{
             const file=event.target.files?.[0];
             if(!file)return;
@@ -352,8 +352,8 @@ export function BotForm({ channel, post, messaging=false, close, save, inline=fa
               if(contents.length>8000)throw new Error('Tệp Markdown tối đa 8.000 ký tự.');
               setAgentMarkdown(contents);setAgentFileError('');
             }catch(error){setAgentFileError(error.message);}
-          }}/></Field>
-        {agentFileError&&<p className="formerror" role="alert">{agentFileError}</p>}
+          }}/>
+        {agentFileError&&<p className="formerror" role="alert">{copy(agentFileError)}</p>}
         <p className="bot-hint">{copy("AI agent dùng hướng dẫn này và danh mục của Page. Bot chốt đơn phải được bật trong Đơn hàng để tạo đơn.")}</p>
         <Field label={messaging?copy("Hiểu tin nhắn bằng OpenRouter"):copy("Nhắn riêng từ bình luận bằng OpenRouter")}>
           <select value={conversationAi} onChange={(event)=>setConversationAi(event.target.value)}>

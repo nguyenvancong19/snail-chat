@@ -71,7 +71,7 @@ function ResourceSelection({ resources, close, save }) {
     <p>{copy("Chọn tối đa")} {limits.pages} {copy("Page/kênh và")} {limits.staff} {copy("chỗ nhân viên, gồm cả lời mời đang chờ.")}</p>
     <ResourceGroup title="Page/kênh" items={pages} selected={selected.pages} toggle={(...args)=>toggle('pages',...args)}
       label={page=>page.name+' · '+(page.platform==='fb'?'Facebook':'Instagram')+
-        (page.connected?'':' · Chưa kết nối')+(page.paused?' · Tạm dừng':'')}/>
+        (page.connected?'':' · '+copy('Chưa kết nối'))+(page.paused?' · '+copy('Tạm dừng'):'')}/>
     <ResourceGroup title="Nhân viên" items={staff} selected={selected.staff} toggle={(...args)=>toggle('staff',...args)}
       label={member=>member.name+' · '+member.email}/>
     <ResourceGroup title="Lời mời đang chờ" items={invitations} selected={selected.invitations}

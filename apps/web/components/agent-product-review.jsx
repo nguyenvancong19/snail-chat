@@ -78,16 +78,16 @@ export function AgentProductReview({id,review,canRespond,status,paused,latest}) 
       {catalog?.length===0&&<p>{copy('Kênh này chưa có sản phẩm trong danh mục.')}</p>}
       {!!catalog?.length&&items.map((item,index)=><div className="agent-review-item" key={index}>
         <div className="agent-review-line">
-          <Field label="Sản phẩm"><select required value={item.sku} disabled={busy} onChange={event=>change(index,{sku:event.target.value})}>
+          <Field label={copy("Sản phẩm")}><select required value={item.sku} disabled={busy} onChange={event=>change(index,{sku:event.target.value})}>
             <option value="">{copy('Chọn sản phẩm')}</option>
             {item.sku&&!known.has(item.sku)&&<option value={item.sku} disabled>{item.sku} · {copy('Không còn trong danh mục')}</option>}
             {catalog.map(product=><option key={product.sku} value={product.sku} disabled={!product.in_stock}>
               {product.name} · {product.sku}{!product.in_stock?' · '+copy('Hết hàng'):''}
             </option>)}
           </select></Field>
-          <Field label="Màu"><input maxLength={48} value={item.color} disabled={busy} onChange={event=>change(index,{color:event.target.value})}/></Field>
-          <Field label="Size"><input maxLength={32} value={item.size} disabled={busy} onChange={event=>change(index,{size:event.target.value})}/></Field>
-          <Field label="Số lượng"><input type="number" inputMode="numeric" required min="1" max="99" value={item.quantity} disabled={busy} onChange={event=>change(index,{quantity:event.target.value})}/></Field>
+          <Field label={copy("Màu")}><input maxLength={48} value={item.color} disabled={busy} onChange={event=>change(index,{color:event.target.value})}/></Field>
+          <Field label={copy("Size")}><input maxLength={32} value={item.size} disabled={busy} onChange={event=>change(index,{size:event.target.value})}/></Field>
+          <Field label={copy("Số lượng")}><input type="number" inputMode="numeric" required min="1" max="99" value={item.quantity} disabled={busy} onChange={event=>change(index,{quantity:event.target.value})}/></Field>
         </div>
         {known.get(item.sku)?.in_stock===false&&<p className="formerror" role="status">{copy('Sản phẩm đã hết hàng.')}</p>}
         {items.length>1&&<Button aria-label={copy('Bỏ sản phẩm')+' '+(index+1)} disabled={busy} onClick={()=>setItems(previous=>previous.filter((_,i)=>i!==index))}>{copy('Bỏ')}</Button>}
