@@ -13,7 +13,7 @@ export function AiDraft({ channel, kind, onDraft }) {
   async function generate() {
     setBusy(true);setError('');setDraft(null);
     try{
-      setDraft(await api('ai/draft','POST',{channel:channel.id,kind,prompt:prompt.trim()},AbortSignal.timeout(45_000)));
+      setDraft(await api('ai/draft','POST',{channel:channel.id,kind,prompt:prompt.trim()},AbortSignal.timeout(95_000)));
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}
   }

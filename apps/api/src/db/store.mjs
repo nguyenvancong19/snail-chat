@@ -1,3 +1,4 @@
+import { aiProviderFailoverSchema } from './migrations/019-ai-provider-failover.mjs';
 import { aiProvidersSchema } from './migrations/018-ai-providers.mjs';
 import { workspaceAccessSchema } from './migrations/017-workspace-access.mjs';
 import { aiWalletSchema } from './migrations/016-ai-wallet.mjs';
@@ -133,6 +134,10 @@ export async function initializeDatabase() {
     if(!await get("SELECT id FROM schema_migrations WHERE id='018-ai-providers'")){
       await run(aiProvidersSchema);
       await run("INSERT INTO schema_migrations(id) VALUES('018-ai-providers')");
+    }
+    if(!await get("SELECT id FROM schema_migrations WHERE id='019-ai-provider-failover'")){
+      await run(aiProviderFailoverSchema);
+      await run("INSERT INTO schema_migrations(id) VALUES('019-ai-provider-failover')");
     }
   });
 }

@@ -207,6 +207,10 @@ Trong **Quản lý gói dịch vụ**, chỉnh số lượt dự trữ trong ph�
 
 Trong **Quản trị → Cấu hình AI**, chọn nhà cung cấp, nhập mã model và API key rồi thử kết nối. Màn hình kiểm tra dùng dữ liệu mẫu. Khi bật hoặc đổi cấu hình đang hoạt động, máy chủ kiểm tra kết nối trước khi lưu. Hạn mức gói tiếp tục dùng token do API báo hoặc mức ước tính khi API chưa trả số token.
 
+Mở **Nhà cung cấp dự phòng**, bật chuyển dự phòng và nhập nhà cung cấp, model, API key riêng. Mỗi lượt gọi ưu tiên nhà cung cấp chính. Nếu nhà cung cấp chính mất kết nối, hết thời gian chờ, từ chối API key, báo hết số dư hoặc chạm giới hạn phía nhà cung cấp, SnailChat thử nhà cung cấp dự phòng một lần. Hạn mức gói và giới hạn gọi của SnailChat tiếp tục được kiểm tra ở mỗi lượt gọi. Khi tắt dự phòng, cấu hình đã lưu vẫn dùng được khi bật lại.
+
+Biểu đồ quản trị hiển thị token do nhà cung cấp báo trong 7 ngày lịch tính theo giờ Việt Nam, gồm ngày hiện tại. Lượt kiểm tra kết nối và lượt mô phỏng không xuất hiện trong biểu đồ. Mô phỏng dùng cấu hình đã lưu và không gọi API của nhà cung cấp.
+
 Để thêm một nhà cung cấp riêng dùng API tương thích OpenAI Chat Completions, khai báo endpoint HTTPS tin cậy trong biến môi trường của container API. Ví dụ trong `.env` của Docker Compose:
 
 ```dotenv

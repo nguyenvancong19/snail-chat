@@ -79,7 +79,7 @@ function BatchFaq({channel,kind,close,onSave}) {
   async function generate(){
     setBusy(true);setError('');setItems([]);setSelected([]);
     try{
-      const result=await api('ai/faqs','POST',{channel:channel.id,surface:kind,count,prompt},AbortSignal.timeout(25_000));
+      const result=await api('ai/faqs','POST',{channel:channel.id,surface:kind,count,prompt},AbortSignal.timeout(50_000));
       setItems(result.items);setSelected(result.items.map((_,index)=>index));
     }catch(problem){setError(problem.message);}
     finally{setBusy(false);}

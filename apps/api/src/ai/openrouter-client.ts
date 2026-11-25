@@ -5,6 +5,14 @@ import { throttle } from '../db/store.mjs';
 import { AppError } from '../http/validation.mjs';
 import { providerEndpoint } from './providers.js';
 
+class ProviderUnavailable extends AppError {}
+
+const upstreamCodes = new Map([
+  ['insufficient_quota', 402], ['insufficient_balance', 402], ['insufficient_credits', 402],
+  ['billing_hard_limit_reached', 402], ['payment_required', 402], ['resource_exhausted', 429],
+  ['rate_limit_exceeded', 429], ['service_unavailable', 503],
+]);
+
 function upstreamError(status: number, label: string) {
   const messages = {
     400: 'Kiểm tra mã model và khả năng trả JSON của model.',
@@ -15,7 +23,9 @@ function upstreamError(status: number, label: string) {
     429: 'Đã chạm giới hạn lượt gọi. Thử lại sau.',
     503: 'Nhà cung cấp model tạm thời không khả dụng. Thử lại sau.',
   };
-  return new AppError(502, `${label} (${status}). ${messages[status] ?? 'Không xử lý được yêu cầu lúc này.'}`);
+  const ErrorType = [401, 402, 403, 404, 408, 429].includes(status) || status >= 500
+    ? ProviderUnavailable : AppError;
+  return new ErrorType(502, `${label} (${status}). ${messages[status] ?? 'Không xử lý được yêu cầu lúc này.'}`);
 }
 
 function tokenSum(prompt: unknown, completion: unknown) {
@@ -44,12 +54,55 @@ async function reportedTokens(data, key: string, provider: string) {
   } catch { return null; }
 }
 
-export async function completeJson(config, instruction: string, input, maxTokens: number, schema?: {name: string; fields: string[]}) {
+type Schema = {name: string; fields: string[]};
+
+export async function completeJson(config, instruction: string, input, maxTokens: number, schema?: Schema) {
+  return routeAiRequest(config, provider => completeWithProvider(provider, instruction, input, maxTokens, schema));
+}
+
+async function routeAiRequest(config, execute) {
+  try {
+    return await execute(config);
+  } catch (error) {
+    if (!(error instanceof ProviderUnavailable) || !config.backup_enabled ||
+      !config.backup_provider || !config.backup_model || !config.backup_api_key) throw error;
+
+    return execute({
+      ...config, provider:config.backup_provider, model:config.backup_model, api_key:config.backup_api_key,
+    });
+  }
+}
+
+export async function simulateAiRouting(config, scenario: string) {
+  const attempts = [];
+  let used = null;
+  try {
+    used = await routeAiRequest(config, async ({provider}) => {
+      const outcome = provider === config.provider
+        ? ({healthy:'ok', balance:'balance', outage:'outage', both:'outage'})[scenario]
+        : scenario === 'both' ? 'outage' : 'ok';
+      attempts.push({provider, outcome});
+      if (outcome !== 'ok') throw new ProviderUnavailable(502, outcome);
+      return provider;
+    });
+  } catch (error) {
+    if (!(error instanceof ProviderUnavailable)) throw error;
+  }
+  return {used, attempts};
+}
+
+async function completeWithProvider(config, instruction: string, input, maxTokens: number, schema?: Schema) {
   const provider = config.provider ?? 'openrouter';
-  const {label,url,structured,maxTokenField} = providerEndpoint(provider);
+  let endpoint;
+  try { endpoint = providerEndpoint(provider); }
+  catch (error) {
+    if (!(error instanceof AppError)) throw error;
+    throw new ProviderUnavailable(error.status, error.message);
+  }
+  const {label,url,structured,maxTokenField} = endpoint;
   let key;
   try { key = unseal(config.api_key); }
-  catch { throw new AppError(502, 'SnailChat không đọc được API key đã lưu. Nhập lại khóa trong Admin → Cấu hình AI.'); }
+  catch { throw new ProviderUnavailable(502, 'SnailChat không đọc được API key đã lưu. Nhập lại khóa trong Admin → Cấu hình AI.'); }
 
   const system = schema && !structured
     ? instruction+' Return exactly these JSON fields as strings: '+schema.fields.join(', ')+'.'
@@ -67,11 +120,12 @@ export async function completeJson(config, instruction: string, input, maxTokens
   let estimated = reserve;
   try {
     let response: globalThis.Response;
+    const signal = AbortSignal.timeout(20_000);
     try {
       response = await fetch(url, {
         method: 'POST', redirect: 'error',
         headers: {Authorization: 'Bearer ' + key, 'Content-Type': 'application/json'},
-        signal: AbortSignal.timeout(20_000),
+        signal,
         body: JSON.stringify({
           model: config.model,
           [maxTokenField ?? 'max_tokens']: maxTokens,
@@ -87,20 +141,34 @@ export async function completeJson(config, instruction: string, input, maxTokens
       });
     } catch (error) {
       await settleTokens(reservation, reserve);
-      if (error instanceof Error && error.name === 'TimeoutError') {
-        throw new AppError(504, 'Nhà cung cấp AI chưa phản hồi sau 20 giây. Thử lại sau.');
+      if (signal.aborted || error instanceof Error && error.name === 'TimeoutError') {
+        throw new ProviderUnavailable(504, 'Nhà cung cấp AI chưa phản hồi sau 20 giây. Thử lại sau.');
       }
-      throw new AppError(502, 'Máy chủ SnailChat không kết nối được nhà cung cấp AI.');
+      throw new ProviderUnavailable(502, 'Máy chủ SnailChat không kết nối được nhà cung cấp AI.');
     }
 
-    const data = await response.json().catch(() => null);
-    reported = await reportedTokens(data, key, provider);
-    estimated = reported !== null || (response.status >= 400 && response.status < 500 && !data?.id) ? 0 : reserve;
-    await settleTokens(reservation, reported ?? estimated);
-    if (!response.ok) throw upstreamError(response.status, label);
+    let bodyReadError;
+    const data = await response.json().catch(error => { bodyReadError = error; return null; });
     const choice = data?.choices?.[0];
-    const code = Number(data?.error?.code ?? choice?.error?.code);
-    if (Number.isInteger(code) && code >= 400 && code <= 599) throw upstreamError(code, label);
+    const providerError = data?.error ?? choice?.error;
+    const code = Number(providerError?.code);
+    const numericCode = Number.isInteger(code) && code >= 400 && code <= 599 ? code : undefined;
+    const symbolicCode = [providerError?.code, providerError?.type, providerError?.status]
+      .map(value => typeof value === 'string' ? upstreamCodes.get(value.toLowerCase()) : undefined)
+      .find(value => value !== undefined);
+    // Some gateways return a billing error in an HTTP 400 response.
+    const status = response.ok ? numericCode ?? symbolicCode ?? response.status
+      : response.status === 400 ? symbolicCode ?? response.status : response.status;
+    reported = await reportedTokens(data, key, provider);
+    estimated = reported !== null || (status >= 400 && status < 500 && !data?.id) ? 0 : reserve;
+    await settleTokens(reservation, reported ?? estimated);
+    if (status >= 400) throw upstreamError(status, label);
+    if (bodyReadError && signal.aborted) {
+      throw new ProviderUnavailable(504, 'Nhà cung cấp AI chưa phản hồi sau 20 giây. Thử lại sau.');
+    }
+    if (bodyReadError instanceof TypeError) {
+      throw new ProviderUnavailable(502, 'Máy chủ SnailChat không kết nối được nhà cung cấp AI.');
+    }
     if (choice?.finish_reason === 'length') throw new AppError(502, 'Model trả về bản nháp bị cắt. Thử mô tả ngắn hơn hoặc đổi model.');
     let result;
     try {

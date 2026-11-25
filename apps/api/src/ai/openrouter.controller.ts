@@ -1,7 +1,8 @@
+import { activeAiConfig } from './settings.mjs';
 import { publicUsage } from './usage-quota.mjs';
 import { requestVersion, checkVersion } from '../http/versions.mjs';
 import { requireAgentFeature, requirePlanFeature } from '../billing/plan-features.mjs';
-import { completeJson } from './openrouter-client.js';
+import { completeJson, simulateAiRouting } from './openrouter-client.js';
 import { publicProviders, resolveProvider } from './providers.js';
 import { providerUsage } from './provider-usage.mjs';
 import { Controller, Get, Post, Req, Res } from '@nestjs/common';
@@ -17,9 +18,13 @@ export class OpenRouterController {
   @Get('admin/openrouter')
   @RoutePolicy('admin')
   async settings(@Res() res: Response) {
-    const current = await get(`SELECT version,enabled,provider,model,api_key IS NOT NULL AS configured
-      FROM openrouter_settings WHERE id=1`);
-    return json(res, 200, {...current, providers:publicProviders()});
+    const current = await readSettings();
+    return json(res, 200, {
+      version:current.version, enabled:current.enabled, provider:current.provider, model:current.model,
+      configured:!!current.api_key, providers:publicProviders(),
+      backup:{enabled:current.backup_enabled, provider:current.backup_provider, model:current.backup_model,
+        configured:!!current.backup_api_key},
+    });
   }
 
   @Post('admin/openrouter')
@@ -28,15 +33,26 @@ export class OpenRouterController {
     const body = await jsonBody(req);
     ensure(typeof body.enabled === 'boolean', 400, 'Chọn trạng thái AI.');
     const expected = requestVersion(req);
-    const current = await get('SELECT version,enabled,provider,model,api_key FROM openrouter_settings WHERE id=1');
+    const current = await readSettings();
     checkVersion(current.version, expected);
-    const {provider, model, api_key} = proposedConfig(body, current, body.enabled);
-    if (body.enabled && (!current.enabled || current.provider!==provider || current.model!==model || current.api_key!==api_key)) {
+    const primary = proposedConfig(body, current, body.enabled);
+    const previousBackup = backupConfig(current);
+    const backup = proposedBackup(body.backup, previousBackup);
+    ensure(!backup.enabled || backup.provider !== primary.provider, 400,
+      'Hãy chọn nhà cung cấp dự phòng khác nhà cung cấp chính.');
+
+    const probes = [];
+    if (body.enabled && (!current.enabled || configChanged(primary, current))) probes.push(primary);
+    if (backup.enabled && (!previousBackup.enabled || configChanged(backup, previousBackup))) probes.push(backup);
+    if (probes.length) {
       await throttle('openrouter-test:' + req.actor.id, 5, 60_000);
-      await checkConnection({provider,model,api_key}, false);
+      await Promise.all(probes.map(config => checkConnection(config, false)));
     }
-    const saved = await run(`UPDATE openrouter_settings SET enabled=$1,provider=$2,model=$3,api_key=$4
-      WHERE id=1 AND version=$5`, body.enabled, provider, model, api_key, expected);
+
+    const saved = await run(`UPDATE openrouter_settings SET enabled=$1,provider=$2,model=$3,api_key=$4,
+      backup_enabled=$5,backup_provider=$6,backup_model=$7,backup_api_key=$8
+      WHERE id=1 AND version=$9`, body.enabled, primary.provider, primary.model, primary.api_key,
+      backup.enabled, backup.provider, backup.model, backup.api_key, expected);
     checkVersion(saved.changes ? expected : null, expected);
     return json(res, 200, {ok: true});
   }
@@ -62,7 +78,7 @@ export class OpenRouterController {
     if(kind==='faq')await requirePlanFeature(channel.shop_id,'faq');
     else await requireAgentFeature(channel.shop_id);
     const prompt = string(body.prompt, 2000, { required: true });
-    const config = ensure(await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL'),
+    const config = ensure(await activeAiConfig(),
       503, 'Quản trị viên chưa bật AI.');
     await throttle('openrouter-user:' + req.actor.id, 8, 60_000);
     await throttle('openrouter-global', 60, 60_000);
@@ -79,7 +95,7 @@ export class OpenRouterController {
     const count = body.count;
     ensure(Number.isInteger(count) && count >= 1 && count <= 8, 400, 'Chọn từ 1 đến 8 FAQ.');
     const prompt = string(body.prompt, 2000);
-    const config = ensure(await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL'),
+    const config = ensure(await activeAiConfig(),
       503, 'Quản trị viên chưa bật AI.');
     await throttle('openrouter-user:' + req.actor.id, 8, 60_000);
     await throttle('openrouter-global', 60, 60_000);
@@ -100,17 +116,49 @@ export class OpenRouterController {
     return json(res, 200, { items });
   }
 
+  @Post('admin/openrouter/simulate')
+  @RoutePolicy('admin')
+  async simulate(@Req() req: AppRequest) {
+    const body = await jsonBody(req);
+    const scenario = choicesOf(body.scenario, ['healthy','balance','outage','both']);
+    const config = ensure(await activeAiConfig(), 503, 'Quản trị viên chưa bật AI.');
+    return simulateAiRouting(config, scenario);
+  }
+
   @Post('admin/openrouter/test')
   @RoutePolicy('admin')
   async test(@Req() req: AppRequest, @Res() res: Response) {
     const body = await jsonBody(req);
-    const current = await get('SELECT version,provider,model,api_key FROM openrouter_settings WHERE id=1');
-    if (body.provider !== undefined) checkVersion(current.version, requestVersion(req));
-    const config = proposedConfig({provider:current.provider,model:current.model,...body}, current, true);
+    const current = await readSettings();
+    const target = choicesOf(body.target ?? 'primary', ['primary','backup']);
+    if (target === 'backup' || body.provider !== undefined) checkVersion(current.version, requestVersion(req));
+    const saved = target === 'backup' ? backupConfig(current) : current;
+    const config = proposedConfig({provider:saved.provider,model:saved.model ?? undefined,...body}, saved, true);
     await throttle('openrouter-test:' + req.actor.id, 5, 60_000);
     const tokens = await checkConnection(config);
     return json(res, 200, {provider:config.provider, model:config.model, tokens});
   }
+}
+
+function readSettings() {
+  return get(`SELECT version,enabled,provider,model,api_key,backup_enabled,backup_provider,backup_model,backup_api_key
+    FROM openrouter_settings WHERE id=1`);
+}
+
+function backupConfig(current) {
+  return {enabled:current.backup_enabled, provider:current.backup_provider, model:current.backup_model,
+    api_key:current.backup_api_key};
+}
+
+function proposedBackup(body, current) {
+  if (body === undefined) return current;
+  ensure(body && typeof body.enabled === 'boolean', 400, 'Chọn trạng thái dự phòng.');
+  if (!body.enabled) return {...current, enabled:false};
+  return {...proposedConfig(body, current, true), enabled:true};
+}
+
+function configChanged(config, current) {
+  return config.provider !== current.provider || config.model !== current.model || config.api_key !== current.api_key;
 }
 
 async function checkConnection(config, alsoCheckSchema = true) {

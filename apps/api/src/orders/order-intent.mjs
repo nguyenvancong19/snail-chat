@@ -1,3 +1,4 @@
+import { activeAiConfig } from '../ai/settings.mjs';
 import { completeJson } from '../ai/openrouter-client.js';
 import { all, get, throttle } from '../db/store.mjs';
 import { productValues, salesReply } from './order-flow.mjs';
@@ -40,7 +41,7 @@ export async function classifySalesMessage(channel,item) {
   const events=['quote','productDetails'].filter((event)=>channel.order_templates?.[event]||cases.some((rule)=>rule.event===event));
   const rules=cases.filter((rule)=>rule.match&&(rule.event==='incoming'||events.includes(rule.event)));
   if(!events.length&&!rules.length)return null;
-  const config=await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
+  const config=await activeAiConfig();
   if(!config)return null;
   let answer;
   try{

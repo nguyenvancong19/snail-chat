@@ -1,5 +1,6 @@
+import { activeAiConfig } from './settings.mjs';
 import { agentDocuments } from './agent-documents.mjs';
-import { all, get, throttle } from '../db/store.mjs';
+import { all, throttle } from '../db/store.mjs';
 import { completeJson } from './openrouter-client.js';
 import { redactConversation } from './conversation.mjs';
 import { productValues } from '../orders/order-flow.mjs';
@@ -124,7 +125,7 @@ export async function runSalesAgent(channel,policy,text,{context='',history=[],t
   const comment=policy.unifiedAgent&&type==='comment';
   const normalized=words(text);
   if(comment&&declinesMessage(normalized))return {action:'ignore'};
-  const config=await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
+  const config=await activeAiConfig();
   const query=[text,context,...history.flatMap(({text,reply,sales_sku})=>[text,reply,sales_sku])].filter(Boolean).join(' ').slice(0,6000);
   const products=salesPage?await all(`SELECT sku,name,price,in_stock,description,jsonb_array_length(detail_images) AS detail_count FROM catalog_products
     WHERE channel_id=$1 ORDER BY (strpos(lower($2),lower(sku))>0) DESC,
