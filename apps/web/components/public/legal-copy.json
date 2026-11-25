@@ -27,8 +27,8 @@
     [
       "Nhà cung cấp dịch vụ",
       "Service providers",
-      "Dữ liệu cần thiết có thể được gửi đến Meta để đồng bộ và phản hồi, OpenRouter và nhà cung cấp mô hình khi dùng Agent, dịch vụ email và hạ tầng để vận hành, SePay để đối soát và đơn vị vận chuyển khi bạn sử dụng tính năng giao hàng.",
-      "Relevant data may be sent to Meta for sync and replies, OpenRouter and its model provider when Agent features are used, email and infrastructure providers for operations, SePay for reconciliation, and carriers when you use shipping features."
+      "Dữ liệu cần thiết có thể được gửi đến Meta để đồng bộ và phản hồi, nhà cung cấp AI và nhà cung cấp mô hình được cấu hình khi dùng Agent, dịch vụ email và hạ tầng để vận hành, SePay để đối soát và đơn vị vận chuyển khi bạn sử dụng tính năng giao hàng.",
+      "Relevant data may be sent to Meta for sync and replies, the configured AI and model providers when Agent features are used, email and infrastructure providers for operations, SePay for reconciliation, and carriers when you use shipping features."
     ],
     [
       "Bảo mật",

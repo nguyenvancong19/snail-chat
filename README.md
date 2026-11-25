@@ -1,6 +1,6 @@
-# SNAILCHAT
+# ReelDesk
 
-SnailChat quản lý bình luận trên Facebook Page và Instagram Professional, tin nhắn Messenger gửi tới Facebook Page và thống kê các bài đã xuất bản.
+ReelDesk quản lý bình luận trên Facebook Page và Instagram Professional, tin nhắn Messenger gửi tới Facebook Page và thống kê các bài đã xuất bản.
 
 | Thành phần | Mã nguồn | Nhiệm vụ |
 | --- | --- | --- |
@@ -202,3 +202,15 @@ Trong **Quản lý gói dịch vụ**, chỉnh số lượt dự trữ trong ph�
 - Mỗi đơn giữ nguyên số tiền, thời hạn và giới hạn tại lúc tạo. Kỳ đã thanh toán dùng hạn mức của lần mua đó. Gia hạn hoặc nâng cấp cộng kỳ mới từ ngày hết hạn hiện tại nếu kỳ còn hiệu lực, hoặc từ thời điểm xác nhận thanh toán nếu đã hết hạn.
 - Mã QR chờ chuyển khoản tối đa 30 phút. Gói chỉ kích hoạt khi webhook hợp lệ báo đúng tài khoản nhận, số tiền, mã và thời điểm giao dịch. Giao dịch sai số tiền, đến ngoài thời gian cho phép hoặc chuyển thêm cho một đơn đã trả sẽ xuất hiện trong màn đối soát. SePay báo lại cùng giao dịch không cộng thêm thời hạn.
 - Khi kỳ trả phí hết hạn, Shop tạm ngừng xử lý theo trạng thái thuê. Chủ Shop vẫn có thể mở **Gói dịch vụ** để gia hạn. Nếu Shop bị Super Admin khóa, cần mở khóa Shop trước khi tạo đơn thanh toán mới.
+
+### Nhà cung cấp AI
+
+Trong **Quản trị → Cấu hình AI**, chọn nhà cung cấp, nhập mã model và API key rồi thử kết nối. Màn hình kiểm tra dùng dữ liệu mẫu. Khi bật hoặc đổi cấu hình đang hoạt động, máy chủ kiểm tra kết nối trước khi lưu. Hạn mức gói tiếp tục dùng token do API báo hoặc mức ước tính khi API chưa trả số token.
+
+Để thêm một nhà cung cấp riêng dùng API tương thích OpenAI Chat Completions, khai báo endpoint HTTPS tin cậy trong biến môi trường của container API. Ví dụ trong `.env` của Docker Compose:
+
+```dotenv
+SNAILCHAT_AI_PROVIDERS='[{"name":"Company AI","endpoint":"https://ai.example.com/v1/chat/completions","structured":false}]'
+```
+
+Thay endpoint ví dụ bằng endpoint thật và khởi động lại API. Sau đó chọn **Nhập nhà cung cấp** trong Admin và điền tên đã đăng ký. Model cần trả được JSON object. Đặt `structured` thành `true` nếu endpoint hỗ trợ `response_format: json_schema`. Nếu đổi địa chỉ endpoint, nhập lại API key cho địa chỉ mới.

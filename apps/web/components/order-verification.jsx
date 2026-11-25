@@ -44,14 +44,14 @@ export function CheckoutCases({ channel, saved, close, refresh }) {
   function update(id,fields) {
     setCases((current)=>current.map((rule)=>rule.id===id?{...rule,...fields}:rule));
   }
-  return <Dialog title={copy("Cấu hình agent chốt đơn")} close={close} label={copy("Lưu trường hợp")} submit={async()=>{
+  return <Dialog title={copy("Cấu hình bot chốt đơn")} close={close} label={copy("Lưu trường hợp")} submit={async()=>{
     await api('orders/cases','POST',{channel,aiMode,cases:cases.map(({event,match,reply})=>({event,match,reply}))});
     refresh();
   }}>
-    <Field label={copy("OpenRouter nhận diện câu hỏi tự nhiên")}><select value={aiMode} onChange={(event)=>setAiMode(event.target.value)}>
+    <Field label={copy("AI nhận diện câu hỏi tự nhiên")}><select value={aiMode} onChange={(event)=>setAiMode(event.target.value)}>
       <option value="off">{copy("Tắt")}</option><option value="review">{copy("Gợi ý để shop duyệt")}</option><option value="auto">{copy("Tự gửi khi nhận diện rõ")}</option>
     </select></Field>
-    <p className="dim">{copy("Cần bật OpenRouter trong Admin. Tin nhắn đang xét được gửi đến model để chọn tình huống. Điền chi tiết sản phẩm trong Danh mục Page và dùng biến")} {'{description}'}.</p>
+    <p className="dim">{copy("Cần bật AI trong trang quản trị. Tin nhắn đang xét được gửi đến model để chọn tình huống. Điền chi tiết sản phẩm trong Danh mục Page và dùng biến")} {'{description}'}.</p>
     <p className="dim">{copy("Bot gửi nội dung shop đã lưu. Để chạy luồng mua lần đầu, thêm Khách muốn đặt hàng – hỏi thông tin nhận hàng, Tóm tắt trước khi xác nhận, Chờ shop xác minh và Xác minh thành công. Trong hướng dẫn, ghi cách gửi Họ tên | Số điện thoại | Địa chỉ. Trong tóm tắt, ghi XÁC NHẬN")} { '{code}' }.</p>
     <p className="dim">{copy("Khi khách nhắn “tôi muốn đặt hàng”, bot dùng sản phẩm vừa báo giá trong cuộc trò chuyện. Nếu chưa rõ sản phẩm, thêm trường hợp hỏi mã. Để trống cụm từ ở mẫu hỏi thông tin nhận hàng để dùng được cả khi khách gửi mã sản phẩm.")}</p>
     <div className="bot-section">

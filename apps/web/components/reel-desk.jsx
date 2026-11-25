@@ -6,7 +6,7 @@ import { AdminBilling, ServicePlans } from './billing.jsx';
 import { Brand, Button } from './ui.jsx';
 import { BotConfiguration, BotKnowledge } from './bot-workspace.jsx';
 import { AdminShops, ShopInvitations, ShopMembers } from './shops.jsx';
-import { AdminOpenRouter } from './openrouter.jsx';
+import { AdminAiSettings } from './ai-settings.jsx';
 import { useSystemTheme } from './theme.jsx';
 import { appearancePreferences, effectiveTheme, themeStyle } from '../lib/appearance.js';
 import { displayCopy, useDisplayCatalog } from '../lib/display-catalog.jsx';
@@ -31,7 +31,7 @@ const settingsTabs=['appearance','language','sounds'];
 const settingsEntry=['settings','Cài đặt tài khoản','settings',AccountSettings];
 const adminNav=[['dashboard','Quản lý Shop','grid',AdminShops],['users-overview','Tổng quan người dùng','grid',AdminOverview],
   ['users','Quản lý người dùng','user',AdminUsers],['system','Thống kê hệ thống','chart',AdminSystem],
-  ['billing','Quản lý gói','document',AdminBilling],['openrouter','OpenRouter','bot',AdminOpenRouter],settingsEntry];
+  ['billing','Quản lý gói','document',AdminBilling],['openrouter','Cấu hình AI','bot',AdminAiSettings],settingsEntry];
 
 export default function SnailChat({ adminArea=false, loginArea=false }) {
 

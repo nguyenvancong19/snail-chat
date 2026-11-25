@@ -15,7 +15,7 @@ const nextQuestions={
 };
 
 export async function understandConversation(channel,policy,text,{context='',type='message',manualOnly=false,history=[]}={}) {
-  const config=await get('SELECT model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
+  const config=await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
   if(!config)return null;
 
   const rules=policy.rules.map((rule,index)=>({rule,index})).filter(({rule})=>rule.enabled!==false);

@@ -91,7 +91,7 @@ function BatchFaq({channel,kind,close,onSave}) {
       include:[...new Set([item.question,...item.alternatives])],context:[],exclude:[],enabled:true,action:'review',
     })));
   }}>
-    <p className="bot-hint">{copy("OpenRouter nhận mục đích, thông tin Page và danh mục sản phẩm của Page bán hàng. FAQ lưu ở chế độ Chờ duyệt.")}</p>
+    <p className="bot-hint">{copy("Nhà cung cấp AI nhận mục đích, thông tin Page và danh mục sản phẩm của Page bán hàng. FAQ lưu ở chế độ Chờ duyệt.")}</p>
     <Field label={copy("Số lượng tối đa")}><select value={count} onChange={(event)=>setCount(Number(event.target.value))}>
       {[1,2,3,4,5,6,7,8].map((number)=><option key={number}>{number}</option>)}</select></Field>
     <Field label={copy("Yêu cầu bổ sung (tùy chọn)")}><textarea value={prompt} maxLength={2000} onChange={(event)=>setPrompt(event.target.value)}/></Field>

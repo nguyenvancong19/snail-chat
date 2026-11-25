@@ -40,7 +40,7 @@ export async function classifySalesMessage(channel,item) {
   const events=['quote','productDetails'].filter((event)=>channel.order_templates?.[event]||cases.some((rule)=>rule.event===event));
   const rules=cases.filter((rule)=>rule.match&&(rule.event==='incoming'||events.includes(rule.event)));
   if(!events.length&&!rules.length)return null;
-  const config=await get('SELECT model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
+  const config=await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
   if(!config)return null;
   let answer;
   try{
@@ -57,7 +57,7 @@ export async function classifySalesMessage(channel,item) {
       'Nếu mơ hồ, ngoài phạm vi, đặt hàng/thao tác đơn, hỏi phí ship hoặc nhắc tới giá mà không hỏi giá sản phẩm, trả none.',
     ].join(' '),JSON.stringify({text,intents:events,rules:rules.map(({event,match})=>({event,match}))}),180);
   }catch(error){
-    return {error:error.status===429?'Đã đạt giới hạn nhận diện câu hỏi.':'OpenRouter chưa nhận diện được câu hỏi. Shop có thể trả lời thủ công.'};
+    return {error:error.status===429?'Đã đạt giới hạn nhận diện câu hỏi.':'AI chưa nhận diện được câu hỏi. Shop có thể trả lời thủ công.'};
   }
   if(answer?.intent==='rule'&&Number.isInteger(answer.rule)&&rules[answer.rule]?.event==='incoming'){
     return {reply:rules[answer.rule].reply,category:'AI · '+rules[answer.rule].match};

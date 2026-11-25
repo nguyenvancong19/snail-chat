@@ -355,14 +355,14 @@ export function BotForm({ channel, post, messaging=false, close, save, inline=fa
           }}/>
         {agentFileError&&<p className="formerror" role="alert">{copy(agentFileError)}</p>}
         <p className="bot-hint">{copy("AI agent dùng hướng dẫn này và danh mục của Page. Bot chốt đơn phải được bật trong Đơn hàng để tạo đơn.")}</p>
-        <Field label={messaging?copy("Hiểu tin nhắn bằng OpenRouter"):copy("Nhắn riêng từ bình luận bằng OpenRouter")}>
+        <Field label={messaging?copy("Hiểu tin nhắn bằng AI"):copy("Nhắn riêng từ bình luận bằng AI")}>
           <select value={conversationAi} onChange={(event)=>setConversationAi(event.target.value)}>
             <option value="off">{copy("Tắt")}</option>
             <option value="review">{copy("Tạo bản nháp để shop duyệt")}</option>
             <option value="auto">{copy("Tự gửi khi khớp quy tắc cho phép")}</option>
           </select>
         </Field>
-        <p className="bot-hint">{copy("OpenRouter đọc nội dung và ngữ cảnh để chọn FAQ hoặc quy tắc. Tự gửi dùng câu trả lời shop đã lưu. Bản nháp AI có thể sửa trước khi gửi.")}</p>
+        <p className="bot-hint">{copy("AI đọc nội dung và ngữ cảnh để chọn FAQ hoặc quy tắc. Tự gửi dùng câu trả lời shop đã lưu. Bản nháp AI có thể sửa trước khi gửi.")}</p>
       </>}
       <Field label={copy("Từ hoặc cụm từ bot cần chặn")}><textarea value={blocked} rows={2}
         onChange={(event)=>{setBlocked(event.target.value);setSample('');}}/></Field>

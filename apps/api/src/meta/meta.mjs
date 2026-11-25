@@ -986,7 +986,7 @@ export async function privateCommentAiTick(){
     }catch(error){
       const latest=await get('SELECT private_ai_draft FROM comments WHERE id=$1 AND private_ai_job=$2',id,claim);
       return await finish(latest?.private_ai_draft??null,error instanceof AppError?error.message:
-        'AI agent chưa xử lý được bình luận. Kiểm tra kết nối Meta và OpenRouter.');
+        'AI agent chưa xử lý được bình luận. Kiểm tra kết nối Meta và nhà cung cấp AI.');
     }
   }));
 }
@@ -1143,7 +1143,7 @@ export async function replyTick(messaging=false) {
           semantic=await understandConversation(c,policy,item.text,{context:history[0]?.text,
             history:[...history,...outbound].sort((a,b)=>a.created-b.created),manualOnly:policy.conversationAi!=='auto'});
         }catch{
-          if(!item.reply||policy.conversationAi==='review')return finish('review','OpenRouter chưa xử lý được tin nhắn. Shop có thể trả lời thủ công.');
+          if(!item.reply||policy.conversationAi==='review')return finish('review','AI chưa xử lý được tin nhắn. Shop có thể trả lời thủ công.');
         }
         if(semantic?.abstain)return finish('review');
         if(semantic){
@@ -1151,7 +1151,7 @@ export async function replyTick(messaging=false) {
             FROM channels c,messenger_contacts contact WHERE m.id=$1 AND m.status='sending' AND m.reply_claim_until=$2
               AND c.id=m.channel_id AND c.message_bot_mode='rules' AND c.message_bot_policy=$5::jsonb
               AND contact.channel_id=m.channel_id AND contact.sender_id=m.sender_id AND contact.last_inbound<=m.created`,
-          id,claimUntil,'OpenRouter · '+semantic.category,semantic.draft,JSON.stringify(policy));
+          id,claimUntil,'AI · '+semantic.category,semantic.draft,JSON.stringify(policy));
           if(!updated.changes||semantic.action!=='auto')return finish('review');
           item.reply=renderBotReply(semantic.reply,{pageName:c.name,customerName:semantic.reply.includes('{{customer_name}}')
             ?await messengerName(c,item.sender_id):''});

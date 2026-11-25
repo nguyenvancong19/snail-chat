@@ -124,7 +124,7 @@ export async function runSalesAgent(channel,policy,text,{context='',history=[],t
   const comment=policy.unifiedAgent&&type==='comment';
   const normalized=words(text);
   if(comment&&declinesMessage(normalized))return {action:'ignore'};
-  const config=await get('SELECT model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
+  const config=await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
   const query=[text,context,...history.flatMap(({text,reply,sales_sku})=>[text,reply,sales_sku])].filter(Boolean).join(' ').slice(0,6000);
   const products=salesPage?await all(`SELECT sku,name,price,in_stock,description,jsonb_array_length(detail_images) AS detail_count FROM catalog_products
     WHERE channel_id=$1 ORDER BY (strpos(lower($2),lower(sku))>0) DESC,
@@ -132,7 +132,7 @@ export async function runSalesAgent(channel,policy,text,{context='',history=[],t
   const productContext=type==='comment'?await commentCatalogContext(products,text,context,resolvePhoto):null;
   const clearProductQuestion=salesPage&&comment&&customerQuestion(normalized);
   const handoff=(reason)=>clearProductQuestion?productCommentFallback(products,productContext,normalized):{action:'handoff',reason};
-  if(!config)return handoff('OpenRouter chưa bật hoặc chưa có API key. Kiểm tra Admin → OpenRouter.');
+  if(!config)return handoff('AI chưa bật hoặc chưa có API key. Kiểm tra Admin → Cấu hình AI.');
   await throttle('sales-agent:'+channel.id,30,60_000);
   await throttle('sales-agent-global',120,60_000);
   const documents=policy.unifiedAgent?(await agentDocuments(channel.id,true))
@@ -225,7 +225,7 @@ export async function runSalesAgent(channel,policy,text,{context='',history=[],t
       return {action:'handoff',reason:'Câu trả lời bảo quản vẫn lẫn hướng dẫn sử dụng. Cần shop kiểm tra.'};
     }
   }
-  if(!['reply','photos','buy','handoff','ignore'].includes(result?.action))return handoff('OpenRouter trả về hành động không hợp lệ.');
+  if(!['reply','photos','buy','handoff','ignore'].includes(result?.action))return handoff('Model trả về hành động không hợp lệ.');
   if(!salesPage&&(result.action==='buy'||result.action==='photos'))return handoff('Page chưa bật bán hàng.');
   const requestedSku=typeof result.sku==='string'?result.sku.trim().toUpperCase():'';
   const referenced=productContext?.mentionedSkus.length?productContext.mentionedSkus:
@@ -281,7 +281,7 @@ export async function runSalesAgent(channel,policy,text,{context='',history=[],t
     :'private';
   if(!['public','private','both'].includes(route))return handoff('Agent chưa chọn được kênh phản hồi.');
   let reply=typeof result.reply==='string'?result.reply.trim():'';
-  if(!reply||reply.length>1000)return handoff('OpenRouter trả câu trả lời trống hoặc vượt giới hạn.');
+  if(!reply||reply.length>1000)return handoff('Model trả câu trả lời trống hoặc vượt giới hạn.');
   // Preserve model wording when its literal price agrees with the current catalog.
   if(product&&!productContext?.unknownSku&&(!referenced.length||referenced.includes(product.sku))){
     reply=reply.replace(/(?<![\d.,])(\d{1,3}(?:[., ]\d{3})+|\d+)\s*(vnđ|vnd|đ|₫|k)(?![\p{L}\d])/giu,(literal,amount,unit)=>{

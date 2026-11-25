@@ -33,7 +33,7 @@ async function sourceTexts(keys){
 }
 
 async function generate(locale,entries){
-  const config=await get('SELECT model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
+  const config=await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL');
   if(!config)return {state:'disabled',missing:true};
   const unique=[...new Map(entries.map(({hash,source})=>[hash,source])).entries()];
   const taskKey=locale+':'+unique.map(([hash])=>hash).sort().join(',');

@@ -2,6 +2,8 @@ import { publicUsage } from './usage-quota.mjs';
 import { requestVersion, checkVersion } from '../http/versions.mjs';
 import { requireAgentFeature, requirePlanFeature } from '../billing/plan-features.mjs';
 import { completeJson } from './openrouter-client.js';
+import { publicProviders, resolveProvider } from './providers.js';
+import { providerUsage } from './provider-usage.mjs';
 import { Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { seal } from '../auth/crypto.mjs';
@@ -15,27 +17,36 @@ export class OpenRouterController {
   @Get('admin/openrouter')
   @RoutePolicy('admin')
   async settings(@Res() res: Response) {
-    const row = await get('SELECT version,enabled,model,api_key IS NOT NULL AS configured FROM openrouter_settings WHERE id=1');
-    return json(res, 200, row ?? { enabled: false, model: '', configured: false });
+    const current = await get(`SELECT version,enabled,provider,model,api_key IS NOT NULL AS configured
+      FROM openrouter_settings WHERE id=1`);
+    return json(res, 200, {...current, providers:publicProviders()});
   }
 
   @Post('admin/openrouter')
   @RoutePolicy('admin')
   async saveSettings(@Req() req: AppRequest, @Res() res: Response) {
     const body = await jsonBody(req);
-    ensure(typeof body.enabled === 'boolean', 400, 'Chọn trạng thái OpenRouter.');
-    const model = string(body.model, 160, { required: body.enabled });
-    const key = string(body.apiKey, 512);
-    ensure(!model || /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:-]*$/i.test(model), 400, 'Nhập mã model dạng nhà-cung-cấp/tên-model.');
-    ensure(!key || /^sk-or-[A-Za-z0-9_-]+$/.test(key), 400, 'API key OpenRouter không hợp lệ.');
-    const expected=requestVersion(req);
-    const current=await get('SELECT version,api_key IS NOT NULL AS configured FROM openrouter_settings WHERE id=1');
-    checkVersion(current.version,expected);
-    ensure(!body.enabled || key || current.configured,400,'Nhập API key trước khi bật OpenRouter.');
-    const saved=await run(`UPDATE openrouter_settings SET enabled=$1,model=$2,api_key=COALESCE($3,api_key) WHERE id=1 AND version=$4`,
-      body.enabled,model,key?seal(key):null,expected);
-    checkVersion(saved.changes?expected:null,expected);
-    return json(res, 200, { ok: true });
+    ensure(typeof body.enabled === 'boolean', 400, 'Chọn trạng thái AI.');
+    const expected = requestVersion(req);
+    const current = await get('SELECT version,enabled,provider,model,api_key FROM openrouter_settings WHERE id=1');
+    checkVersion(current.version, expected);
+    const {provider, model, api_key} = proposedConfig(body, current, body.enabled);
+    if (body.enabled && (!current.enabled || current.provider!==provider || current.model!==model || current.api_key!==api_key)) {
+      await throttle('openrouter-test:' + req.actor.id, 5, 60_000);
+      await checkConnection({provider,model,api_key}, false);
+    }
+    const saved = await run(`UPDATE openrouter_settings SET enabled=$1,provider=$2,model=$3,api_key=$4
+      WHERE id=1 AND version=$5`, body.enabled, provider, model, api_key, expected);
+    checkVersion(saved.changes ? expected : null, expected);
+    return json(res, 200, {ok: true});
+  }
+
+  @Get('admin/ai/usage')
+  @RoutePolicy('admin')
+  async usageOverview(@Req() req: AppRequest) {
+    const days = Number(choicesOf(req.query.days ?? '7', ['7', '30']));
+    const provider = req.query.provider === undefined ? '' : resolveProvider(req.query.provider);
+    return providerUsage(days, provider);
   }
 
   @Get('ai/usage')
@@ -51,8 +62,8 @@ export class OpenRouterController {
     if(kind==='faq')await requirePlanFeature(channel.shop_id,'faq');
     else await requireAgentFeature(channel.shop_id);
     const prompt = string(body.prompt, 2000, { required: true });
-    const config = ensure(await get('SELECT model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL'),
-      503, 'Quản trị viên chưa bật OpenRouter.');
+    const config = ensure(await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL'),
+      503, 'Quản trị viên chưa bật AI.');
     await throttle('openrouter-user:' + req.actor.id, 8, 60_000);
     await throttle('openrouter-global', 60, 60_000);
 
@@ -68,8 +79,8 @@ export class OpenRouterController {
     const count = body.count;
     ensure(Number.isInteger(count) && count >= 1 && count <= 8, 400, 'Chọn từ 1 đến 8 FAQ.');
     const prompt = string(body.prompt, 2000);
-    const config = ensure(await get('SELECT model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL'),
-      503, 'Quản trị viên chưa bật OpenRouter.');
+    const config = ensure(await get('SELECT provider,model,api_key FROM openrouter_settings WHERE id=1 AND enabled AND api_key IS NOT NULL'),
+      503, 'Quản trị viên chưa bật AI.');
     await throttle('openrouter-user:' + req.actor.id, 8, 60_000);
     await throttle('openrouter-global', 60, 60_000);
     const products = channel.page_purpose === 'sales'
@@ -92,12 +103,44 @@ export class OpenRouterController {
   @Post('admin/openrouter/test')
   @RoutePolicy('admin')
   async test(@Req() req: AppRequest, @Res() res: Response) {
-    const config = ensure(await get('SELECT model,api_key FROM openrouter_settings WHERE id=1 AND api_key IS NOT NULL AND model<>$1', ''),
-      400, 'Lưu API key và model trước khi thử.');
+    const body = await jsonBody(req);
+    const current = await get('SELECT version,provider,model,api_key FROM openrouter_settings WHERE id=1');
+    if (body.provider !== undefined) checkVersion(current.version, requestVersion(req));
+    const config = proposedConfig({provider:current.provider,model:current.model,...body}, current, true);
     await throttle('openrouter-test:' + req.actor.id, 5, 60_000);
-    const sample = await generateDraft(config, 'faq', { page: 'Page thử nghiệm', input: 'Câu hỏi về giờ làm việc. Page làm việc từ 9h đến 17h.' });
-    return json(res, 200, { model: config.model, sample });
+    const tokens = await checkConnection(config);
+    return json(res, 200, {provider:config.provider, model:config.model, tokens});
   }
+}
+
+async function checkConnection(config, alsoCheckSchema = true) {
+  const results: (number | null)[] = [];
+  const sampleConfig = {...config, onUsage: (tokens: number | null) => results.push(tokens)};
+  const probe = 'Return a JSON object with a string field reply containing OK.';
+  const valid = (value) => typeof value?.reply === 'string' && value.reply.trim();
+  const plain = await completeJson(sampleConfig, probe, 'Connection test with synthetic data.', 480);
+  ensure(valid(plain),502,'Model chưa trả về JSON đúng cấu trúc thử nghiệm.');
+  if (alsoCheckSchema) {
+    const structured = await completeJson(sampleConfig, probe, 'Connection test with synthetic data.', 480,
+      {name:'snailchat_connection_test',fields:['reply']});
+    ensure(valid(structured),502,'Model chưa trả về JSON đúng cấu trúc thử nghiệm.');
+  }
+  return results.every(value => value !== null) ? results.reduce((total, value) => total + (value ?? 0), 0) : null;
+}
+
+function proposedConfig(body, current, required: boolean) {
+  const provider = resolveProvider(body.provider ?? 'openrouter');
+  const model = string(body.model, 160, {required});
+  const key = string(body.apiKey, 512);
+  const modelPattern = provider === 'openrouter'
+    ? /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:-]*$/i : /^[a-z0-9][a-z0-9._:/-]*$/i;
+  ensure(!model || modelPattern.test(model), 400, 'Nhập mã model theo định dạng của nhà cung cấp.');
+  ensure(!key || /^[\x21-\x7E]+$/.test(key) && (provider !== 'openrouter' || /^sk-or-[A-Za-z0-9_-]+$/.test(key)),
+    400, 'API key không đúng định dạng của nhà cung cấp.');
+  ensure(provider === current.provider || key, 400, 'Nhập API key mới khi đổi nhà cung cấp.');
+  const api_key = key ? seal(key) : current.api_key;
+  ensure(!required || api_key, 400, 'Nhập API key để tiếp tục.');
+  return {provider, model, api_key};
 }
 
 async function generateDraft(config, kind: 'faq' | 'reply', input: { page: string; input: string }) {
@@ -120,5 +163,5 @@ async function generateDraft(config, kind: 'faq' | 'reply', input: { page: strin
     name: kind === 'faq' ? 'snailchat_faq' : 'snailchat_reply',
     fields: kind === 'faq' ? ['question', 'reply'] : ['reply'],
   }));
-  return ensure(second, 502, 'OpenRouter đã phản hồi nhưng model chưa trả được bản nháp đúng cấu trúc.');
+  return ensure(second, 502, 'Model chưa trả được bản nháp đúng cấu trúc.');
 }
