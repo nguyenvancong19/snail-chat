@@ -314,7 +314,7 @@ export function TokenWallet({shop,usage,refreshUsage,applyReset}) {
       <Button disabled={!snapshot?.canReset} onClick={()=>setDialog('reset')}>{copy('Đặt lại hạn mức')}</Button>
       {summary?.pending?.expires_at>Date.now()?<Button variant="primary" onClick={()=>setOrder(summary.pending)}>{copy('Mở đơn đang chờ')}</Button>:
         <Button variant="primary" disabled={!snapshot?.canTopup||!offer||!summary?.sepayReady}
-          onClick={()=>setDialog('buy')}>{copy('Nạp token qua SePay')}</Button>}
+          onClick={()=>setDialog('buy')}>{copy('Nạp token')}</Button>}
     </div>
     <p className="dim ai-wallet-help">{copy(!snapshot?.available?'Cần gói AI đang hoạt động để sử dụng token.':
       snapshot?.canTopup?(!offer?'Nạp token hiện chưa mở bán.':!summary?.sepayReady?'Thanh toán SePay chưa được cấu hình.':'Có thể nạp token khi cần dùng tiếp.'):
@@ -330,7 +330,7 @@ export function TokenWallet({shop,usage,refreshUsage,applyReset}) {
         setResetConfirmed(true);
         void refreshUsage().catch(()=>{});
       }}><p>{copy('Khôi phục hạn mức dự trữ tương đương cho khung đã hết. Thời điểm làm mới tự động không thay đổi.')}</p></Dialog>}
-    {dialog==='buy'&&offer&&<Dialog title={copy('Nạp token qua SePay')} label={copy('Tạo mã thanh toán')}
+    {dialog==='buy'&&offer&&<Dialog title={copy('Nạp token')} label={copy('Tạo mã thanh toán')}
       close={()=>setDialog('')} submit={async()=>{
         const next=await api('billing/token-wallet/orders','POST',{shop},undefined,offer.version);
         setOrder(next);
