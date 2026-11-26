@@ -4,7 +4,7 @@ import { ListPagination, listPageSize, useListPage } from './list-pagination.jsx
 
 import { useDisplayLocale } from '../lib/display-locale.jsx';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { activityLabels, api, botLabels, channelIdentity, formatDate, platformLabel } from '../lib/workspace.js';
+import { activityLabels, api, botLabels, channelIdentity, formatDate, platformLabel, workActorLabel } from '../lib/workspace.js';
 import { Button, CardHead, Chip, Empty, Field, MetricGrid, PageAvatar, PlatformIcon, PostThumbnail, Title } from './ui.jsx';
 import { ConversationTakeover } from './inbox-workflow.jsx';
 import { BotReplyPicker, Dialog } from './forms.jsx';
@@ -506,7 +506,7 @@ function useOlderMessenger(path, latest) {
 }
 
 function ThreadMessages({ item, channel, save, revision, templateRevision, focus, openPlans }) {
-  const {copy}=useDisplayLocale();
+  const {copy,intl}=useDisplayLocale();
   const query=new URLSearchParams({kind:'message',channel:item.channelId,sender:item.senderId});
   const path='activity?'+query;
   const {result:latest,error}=usePages(path,'before',{revision,refreshMs:2_000});
@@ -538,7 +538,15 @@ function ThreadMessages({ item, channel, save, revision, templateRevision, focus
   }
   return <>
     {channel.aiToolsEnabled&&channel.messenger&&channel.messageBotMode!=='off'&&
-      <ConversationTakeover item={item} openPlans={openPlans} lastReplyError={latest?.items[0]?.replyError} resumeAt={latest?.items[0]?.agentResumeAt??item.agentResumeAt??0} canReply={channel.permissions?.includes('chat:reply')}/>}
+      <ConversationTakeover item={item} openPlans={openPlans} lastReplyError={latest?.items[0]?.replyError} resumeAt={latest?.items[0]?.agentResumeAt??item.agentResumeAt??0}
+        takeoverActor={latest?.items[0]?latest.items[0].takeoverActor:item.takeoverActor} canReply={channel.permissions?.includes('chat:reply')}/>}
+    {latest?.takeovers?.length>0&&<details className="staff-takeover-history">
+      <summary>{copy('Lịch sử tiếp quản')}</summary>
+      <ul>{latest.takeovers.map(({kind,at,actor},index)=><li key={at+':'+index}>
+        <strong>{workActorLabel(actor,copy)}</strong> · {copy(kind==='release'?'Kết thúc tiếp quản':kind==='extend'?'Gia hạn tiếp quản':'Tiếp quản')}
+        {' · '}<time>{formatDate(at,intl)}</time>
+      </li>)}</ul>
+    </details>}
     {error&&<p className="notice" role="alert">{copy(error)}</p>}
     {!result&&!error&&<p className="dim">{copy("Đang tải cuộc trò chuyện…")}</p>}
     {history.error&&<p className="notice" role="alert">{history.error} <Button onClick={loadOlder}>{copy("Thử lại")}</Button></p>}
@@ -617,7 +625,7 @@ function CommentThread({ item, channel, save, activityVersion, focus, onHandled 
 
   function privateAction(comment) {
     if(!canReply||channel.platform!=='fb'||!channel.messenger||!channel.privateRepliesEnabled||!comment)return null;
-    if(comment.privateReply==='sent')return <Chip status="replied">{comment.privateReplyAutomatic?copy("Agent đã nhắn riêng"):copy("Đã nhắn riêng")}</Chip>;
+    if(comment.privateReply==='sent')return <Chip status="replied">{comment.privateReplyAutomatic?copy("Bot đã nhắn riêng"):copy("Đã nhắn riêng")}</Chip>;
     if(comment.privateReply==='sending')return <Chip status="sending">{copy("Đang nhắn riêng")}</Chip>;
     if(comment.privateReply==='uncertain')return <Chip status="review">{copy("Kiểm tra tin trong Messenger")}</Chip>;
     if(!comment.privateReplyInWindow)return null;
@@ -821,7 +829,7 @@ function ActivityItems({ kind, channel, status, state, save, activityVersion, te
             <PageAvatar channel={source}/>
             <span className="inbox-row-copy"><strong>{item.author}</strong><span>{source?.name}</span>
               <small>{item.text||item.attachments?.[0]?.name}</small></span>
-            {item.agentResumeAt>Date.now()?<Chip status="review">{copy('Tiếp quản')}</Chip>:
+            {item.agentResumeAt>Date.now()?<Chip status="review">{item.takeoverActor?item.takeoverActor.code||copy('Chủ Shop'):copy('Tiếp quản')}</Chip>:
               item.status==='review'&&<span className="unread-dot" aria-label={t('reviewStatus')}/>}
           </button>;
         })}

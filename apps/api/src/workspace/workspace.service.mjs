@@ -1,3 +1,4 @@
+import { displayWorkActor, takeoverHistory } from '../shops/work-activity.mjs';
 import { pageSize } from '../db/pagination.mjs';
 import { agentIncluded, automationAllowed, catalogIncluded, requirePlanFeature, shopFeatures, withoutFaqs } from '../billing/plan-features.mjs';
 import { hasPurchasedPlan } from '../billing/plan-changes.mjs';
@@ -9,7 +10,7 @@ import { pendingInvitations } from '../shops/members.mjs';
 import { choicesOf, ensure, publicUser, string } from '../http/validation.mjs';
 import { configured, facebookCommentRoot, messageWindow, messengerEnabled, postBot, privateReplyWindow, queueEnabled } from '../meta/meta.mjs';
 
-function viewActivity(row, messaging, now, ai) {
+function viewActivity(row, messaging, now, ai, owner=false) {
   let status=row.status;
   if(messaging&&status==='review'&&row.created<=now-messageWindow)status='expired';
   if(status==='queued'||status==='sending')status='working';
@@ -27,7 +28,12 @@ function viewActivity(row, messaging, now, ai) {
       greetingMid:row.greeting_remote_id,replyMid:row.reply_remote_id,
       replyQuote:showingReply?row.reply_payload?.quote??null:null,
       replyAttachment:showingReply?row.reply_payload?.attachment??null:null}:{}),
-    previousReplies:messaging?(row.previous_replies??[]).map(({text,sentAt,mid,quote,attachment})=>({text,sentAt,mid,quote,attachment})):[],
+    previousReplies:messaging?(row.previous_replies??[]).map(({text,sentAt,mid,quote,attachment,actor,automatic})=>({text,sentAt,mid,quote,attachment,automatic,
+      ...(owner&&actor?{actor:displayWorkActor(actor)}:{})})):[],
+    ...(messaging&&owner?{
+      takeoverActor:row.agent_resume_at>now?displayWorkActor(row.takeover_actor):null,
+      replyActor:row.status==='replied'&&!row.automatic?displayWorkActor(row.reply_actor):null,
+    }:{}),
     sentAt:messaging?row.sent_at:row.reply_sent_at,nested:!messaging&&!!row.parent_key,text:row.text,botCategory:ai?row.bot_category:null,botSuggestion:ai?row.bot_suggestion:null,botBlocked:ai&&!!row.bot_blocked,
     status,reply:showingReply?row.reply:null,
     replyError:row.reply_error??null,automatic:!!row.automatic,created:row.created,
@@ -92,7 +98,7 @@ export async function bootstrap(user,selectedShop,pagedAccounts=false) {
   const orderPages=owner&&orders?[...grants.keys()]:[];
   data.channels=(await all(`SELECT c.*, EXISTS(SELECT 1 FROM shop_orders o WHERE o.channel_id=c.id) AS has_orders
     FROM channels c WHERE c.id=ANY($1::text[]) ORDER BY c.name,c.platform`,[...grants.keys()])).map((c)=>({
-    id:c.id,name:c.name,handle:c.handle,platform:c.platform,createdAt:c.created_at,topic:c.topic,purpose:c.page_purpose,permissions:orders&&c.platform==='fb'&&(c.page_purpose==='sales'||c.has_orders)?grants.get(c.id):grants.get(c.id).filter((permission)=>permission!=='order:manage'),
+    id:c.id,name:c.name,handle:c.handle,platform:c.platform,createdAt:c.created_at,topic:c.topic,purpose:c.page_purpose,permissions:orders&&c.platform==='fb'&&(c.page_purpose==='sales'||c.has_orders)?grants.get(c.id):grants.get(c.id).filter((permission)=>!permission.startsWith('order:')),
     botMode:ai?(c.bot_mode==='auto'&&!c.comment_policy?'review':c.bot_mode):'off',policy:knowledgePolicy(c.comment_policy),
     ordersEnabled:orders&&c.platform==='fb'&&c.page_purpose==='sales'&&c.orders_enabled,aiToolsEnabled:ai,messageBotMode:ai?c.message_bot_mode:'off',
     messageBotPolicy:knowledgePolicy(c.message_bot_policy),messageGreeting:ai?c.message_greeting:null,messagePersonalize:ai&&c.message_personalize,
@@ -153,7 +159,7 @@ export async function activity(user,{kind,channel,status,before,sender='',thread
     ? 'SELECT DISTINCT ON (channel_id,sender_id) * FROM visible ORDER BY channel_id,sender_id,created DESC,id DESC'
     : 'SELECT * FROM visible';
   const rows=await all(`WITH visible AS (
-    SELECT m.* ${messaging?',contact.display_name,contact.agent_resume_at':',p.title AS post_title,COALESCE(p.alias_id,p.remote_id) AS post_remote_id,l.parent_key'} FROM ${table} m
+    SELECT m.* ${messaging?',contact.display_name,contact.agent_resume_at,contact.takeover_actor':',p.title AS post_title,COALESCE(p.alias_id,p.remote_id) AS post_remote_id,l.parent_key'} FROM ${table} m
     JOIN channels c ON c.id=m.channel_id ${messaging
       ?'LEFT JOIN messenger_contacts contact ON contact.channel_id=m.channel_id AND contact.sender_id=m.sender_id'
       :`LEFT JOIN posts p ON p.id=m.post_id
@@ -170,7 +176,8 @@ export async function activity(user,{kind,channel,status,before,sender='',thread
     ORDER BY m.created DESC,m.id DESC LIMIT ${limit+1}`,
     pageIds,channel,status,messaging,now-messageWindow,before?.created??Number.MAX_SAFE_INTEGER,before?.id??'',sender);
   const ai=agentIncluded(await shopFeatures(user.currentShop.id));
-  const items=rows.slice(0,limit).map((row)=>viewActivity(row,messaging,now,ai));
+  const owner=user.memberRole==='OWNER';
+  const items=rows.slice(0,limit).map((row)=>viewActivity(row,messaging,now,ai,owner));
   const last=items.at(-1);
   const next=rows.length>limit?last.created+':'+last.id:null;
   if(messaging&&sender&&!threads){
@@ -182,7 +189,7 @@ export async function activity(user,{kind,channel,status,before,sender='',thread
           OR i.previous_replies @> jsonb_build_array(jsonb_build_object('mid',m.remote_id))))
       ORDER BY m.created DESC,m.remote_id DESC LIMIT 200`,
       pageIds,channel,sender,next?last.created:0,before?.created??Number.MAX_SAFE_INTEGER);
-    return {items,next,outbound};
+    return {items,next,outbound,...(owner&&!before?{takeovers:await takeoverHistory(user.currentShop.id,channel,sender)}:{})};
   }
   return {items,next};
 }

@@ -1,3 +1,4 @@
+import { displayWorkActor, recordWorkEvent, workActor } from '../shops/work-activity.mjs';
 import { pageNumber, pageSize, readPage } from '../db/pagination.mjs';
 import { ownerOnly } from '../shops/tenant.mjs';
 import { agentIncluded, requireAgentFeature, requireOrderFeature } from '../billing/plan-features.mjs';
@@ -44,6 +45,7 @@ export class OrdersController {
     ensure(!day||(/^\d{4}-\d{2}-\d{2}$/.test(day)&&Number.isFinite(start)&&
       new Date(start+7*60*60_000).toISOString().slice(0,10)===day),400,'Ngày tạo đơn không hợp lệ.');
     const sql=`SELECT code,sku,product_name,quantity,unit_price,items,customer,phone,address,status,tracking,created,updated,history,carrier,shipment,ghn_shop,ghn_next,ghn_error,archived_at
+      ${req.actor.memberRole==='OWNER'?',bot_created,created_actor':''}
       FROM shop_orders WHERE channel_id=$1 AND (archived_at IS NOT NULL)=$6 AND ($2='' OR status=$2) AND ($5='' OR code=$5)
       AND ($7::bigint IS NULL OR (created>=$7 AND created<$7+86400000))
       AND (created,code)<($3,$4)`;
@@ -52,7 +54,9 @@ export class OrdersController {
     const list=rawPage!==undefined?await readPage(sql,sort,args,pageNumber(rawPage)):null;
     const rows=list?list.items:await all(sql+' ORDER BY '+sort+' LIMIT '+(pageSize+1),...args);
     const last=rows[pageSize-1];
-    return json(res,200,{items:rows.slice(0,pageSize),next:rows.length>pageSize?last.created+':'+last.code:null,
+    const items=rows.slice(0,pageSize).map(({created_actor,...row})=>created_actor
+      ?{...row,createdBy:displayWorkActor(created_actor)}:row);
+    return json(res,200,{items,next:rows.length>pageSize?last.created+':'+last.code:null,
       ...(list?{page:list.page,total:list.total}:{}),...(req.actor.memberRole==='OWNER'&&agentIncluded(plan)?{enabled:channel.orders_enabled,aiMode:channel.order_ai_mode,
       templates:channel.order_templates,cases:channel.order_cases}:{})});
   }
@@ -79,7 +83,8 @@ export class OrdersController {
   @Post('create')
   async create(@Req() req: AppRequest, @Res() res: Response) {
     const body=await jsonBody(req);
-    const channel=await access(req.actor,string(body.channel,50,{required:true}));
+    const {channel}=await readOrders(req.actor,string(body.channel,50,{required:true}),'order:create');
+    if(body.sendToGhn===true)ownerOnly(req.actor);
     ensure(channel.platform==='fb'&&channel.page_purpose==='sales',400,'Chọn Facebook Page bán hàng.');
     const code=string(body.code,16,{required:true}).toUpperCase();
     ensure(/^[A-F0-9]{16}$/.test(code),400,'Mã yêu cầu không hợp lệ.');
@@ -92,15 +97,18 @@ export class OrdersController {
       const existing=await get('SELECT * FROM shop_orders WHERE channel_id=$1 AND code=$2',channel.id,code);
       if(existing){
         ensure(existing.sender_id===''&&existing.sku===sku&&existing.quantity===quantity&&
-          existing.customer===details.customer&&existing.phone===details.phone&&existing.address===details.address,409,'Mã yêu cầu đã được sử dụng.');
+          (!existing.created_actor||existing.created_actor.id===req.actor.id)&&existing.customer===details.customer&&existing.phone===details.phone&&existing.address===details.address,409,'Mã yêu cầu đã được sử dụng.');
         return;
       }
       const product=await get('SELECT sku,name,price,in_stock FROM catalog_products WHERE channel_id=$1 AND sku=$2 FOR SHARE',channel.id,sku);
       ensure(product?.in_stock,400,'Mã sản phẩm chưa có trong danh mục hoặc đã hết hàng.');
       if(body.sendToGhn===true)ensure(await get(`SELECT 1 FROM shop_carriers WHERE channel_id=$1
         AND carrier='ghn' AND auto_config IS NOT NULL FOR SHARE`,channel.id),409,'Bật và lưu cấu hình tự tạo vận đơn GHN trước.');
-      ensure(await createShopOrder(channel.id,'',{code,quantity,...details},product,Date.now(),false,body.sendToGhn===true),
+      const actor=await workActor(channel.shop_id,req.actor.id);
+      const now=Date.now();
+      ensure(await createShopOrder(channel.id,'',{code,quantity,...details},product,now,false,body.sendToGhn===true,actor),
         409,'Page không còn đủ điều kiện tạo đơn.');
+      await recordWorkEvent(channel,{id:'order:'+channel.id+':'+code,kind:'order',subject:code,at:now,actor});
     });
     return json(res,200,{code});
   }

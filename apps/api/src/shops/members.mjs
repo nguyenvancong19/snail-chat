@@ -1,3 +1,4 @@
+import { assignStaffCode, staffCode } from './work-activity.mjs';
 import { lockBillingShop, requireStaffSlot } from '../billing/limits.mjs';
 import { all, get, run, throttle, transaction, uid } from '../db/store.mjs';
 import { choicesOf, emailOf, ensure, string } from '../http/validation.mjs';
@@ -6,7 +7,7 @@ import { origin } from '../meta/meta.mjs';
 import { ownerOnly } from './tenant.mjs';
 
 const invitationDuration=7*86_400_000;
-const allowed=['chat:read','chat:reply','order:manage'];
+const allowed=['chat:read','chat:reply','order:manage','order:create'];
 
 async function lockShop(actor) {
   ownerOnly(actor);
@@ -25,6 +26,7 @@ async function grantsOf(shopId, input) {
       400,'Hãy chọn quyền cho từng Page.');
     const permissions=[...new Set(entry.permissions.map((permission)=>choicesOf(permission,allowed)))];
     if(permissions.includes('chat:reply')&&!permissions.includes('chat:read'))permissions.push('chat:read');
+    if(permissions.includes('order:create')&&!permissions.includes('order:manage'))permissions.push('order:manage');
     return {pageId,permissions};
   });
   ensure(new Set(grants.map((grant)=>grant.pageId)).size===grants.length,400,'Danh sách Page có mục trùng lặp.');
@@ -42,14 +44,17 @@ async function saveGrants(shopId,memberId,grants) {
 
 export async function listMembers(actor) {
   ownerOnly(actor);
-  return all(`SELECT m.id,u.name,u.email,m.role,m.status,m.joined_at AS "joinedAt",m.joined_at AS sort_at,
+  const rows=await all(`SELECT m.id,u.name,u.email,m.role,m.status,n.number,m.joined_at AS "joinedAt",m.joined_at AS sort_at,
     COALESCE((SELECT jsonb_agg(jsonb_build_object('pageId',a.page_id,'permissions',a.permissions))
       FROM page_assignments a WHERE a.shop_member_id=m.id),'[]'::jsonb) AS grants
-    FROM shop_members m JOIN users u ON u.id=m.user_id WHERE m.shop_id=$1 AND m.status<>'INVITED'
+    FROM shop_members m JOIN users u ON u.id=m.user_id
+    LEFT JOIN shop_staff_codes n ON n.shop_id=m.shop_id AND n.user_id=m.user_id
+    WHERE m.shop_id=$1 AND m.status<>'INVITED'
     UNION ALL
-    SELECT i.id,i.email,i.email,'STAFF','INVITED',NULL,i.expires_at-$3,i.grants
+    SELECT i.id,i.email,i.email,'STAFF','INVITED',NULL,NULL,i.expires_at-$3,i.grants
     FROM shop_invitations i WHERE i.shop_id=$1 AND i.expires_at>$2
     ORDER BY sort_at DESC NULLS LAST,name,id`,actor.currentShop.id,Date.now(),invitationDuration);
+  return rows.map(({number,...row})=>({...row,code:staffCode(number)}));
 }
 
 export async function inviteMember(actor,body) {
@@ -107,6 +112,7 @@ export async function acceptInvitation(actor,id) {
       WHERE shop_members.status='INVITED' AND shop_members.role='STAFF' RETURNING id`,
       uid(),invitation.shop_id,user.id,Date.now());
     ensure(member,409,'Trạng thái thành viên đã thay đổi.');
+    await assignStaffCode(invitation.shop_id,user.id);
     await saveGrants(invitation.shop_id,member.id,invitation.grants);
     await run('DELETE FROM shop_invitations WHERE id=$1',id);
     return {shopId:invitation.shop_id};

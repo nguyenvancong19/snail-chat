@@ -125,7 +125,7 @@ function multiRecap(items,code){
   return 'Đơn của bạn gồm:\n'+lines.join('\n')+'\nTổng tiền hàng '+money(orderTotal({items}))+'. Nếu đúng, gửi XÁC NHẬN '+code+'.';
 }
 
-export async function createShopOrder(channelId,senderId,draft,product,now,automatic,enqueue=true) {
+export async function createShopOrder(channelId,senderId,draft,product,now,automatic,enqueue=true,actor=null) {
   const result=await run(`WITH selling_page AS (
     SELECT page.id FROM channels page JOIN entitled_shop_channels entitlement ON entitlement.id=page.id
     JOIN shops shop ON shop.id=page.shop_id AND shop.status='ACTIVE'
@@ -138,13 +138,13 @@ export async function createShopOrder(channelId,senderId,draft,product,now,autom
     FOR SHARE OF page
   )
   INSERT INTO shop_orders(channel_id,code,sender_id,sku,product_name,quantity,unit_price,
-    customer,phone,address,status,created,updated,history,bot_created,ghn_config,ghn_shop,ghn_next,items)
+    customer,phone,address,status,created,updated,history,bot_created,ghn_config,ghn_shop,ghn_next,items,created_actor)
     SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'new',$11::bigint,$11::bigint,$12,$13,c.auto_config,
       CASE WHEN c.auto_config IS NOT NULL THEN c.account_ref END,
-      CASE WHEN c.auto_config IS NOT NULL THEN $11::bigint END,$15::jsonb
+      CASE WHEN c.auto_config IS NOT NULL THEN $11::bigint END,$15::jsonb,$16::jsonb
     FROM selling_page LEFT JOIN shop_carriers c ON c.channel_id=selling_page.id AND c.carrier='ghn' AND $14::boolean`,
     channelId,draft.code,senderId,product.sku,product.name,draft.quantity,product.price,
-    draft.customer,draft.phone,draft.address,now,JSON.stringify([{status:'new',at:now}]),automatic,enqueue,draft.items?.length?JSON.stringify(draft.items):null);
+    draft.customer,draft.phone,draft.address,now,JSON.stringify([{status:'new',at:now}]),automatic,enqueue,draft.items?.length?JSON.stringify(draft.items):null,actor?JSON.stringify(actor):null);
   return result.changes===1;
 }
 function trackingQuestion(text){

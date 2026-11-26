@@ -72,7 +72,7 @@ export function ownerOnly(user) {
 export async function pageGrants(user) {
   if(!user?.currentShop)return [];
   return all(`SELECT c.id, CASE WHEN m.role='OWNER'
-    THEN ARRAY['chat:read','chat:reply','order:manage']::text[] ELSE a.permissions END AS permissions
+    THEN ARRAY['chat:read','chat:reply','order:manage','order:create']::text[] ELSE a.permissions END AS permissions
     FROM channels c JOIN entitled_shop_channels entitlement ON entitlement.id=c.id JOIN shops s ON s.id=c.shop_id
     JOIN shop_members m ON m.shop_id=s.id AND m.user_id=$2 AND m.status='ACTIVE'
     LEFT JOIN page_assignments a ON a.shop_member_id=m.id AND a.page_id=c.id

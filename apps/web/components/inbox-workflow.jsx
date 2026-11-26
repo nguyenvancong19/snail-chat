@@ -2,25 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useDisplayLocale } from '../lib/display-locale.jsx';
-import { api } from '../lib/workspace.js';
+import { api, workActorLabel } from '../lib/workspace.js';
 import { Dialog } from './forms.jsx';
 import { Button, Chip } from './ui.jsx';
 import { useShopAgentUsage } from './agent-usage.jsx';
 
 const durations=[[15,'15 phút'],[30,'30 phút'],[60,'1 giờ'],[120,'2 giờ']];
 
-export function ConversationTakeover({item,resumeAt,canReply,openPlans,lastReplyError}) {
+export function ConversationTakeover({item,resumeAt,canReply,openPlans,lastReplyError,takeoverActor}) {
   const {copy,intl}=useDisplayLocale();
   const usage=useShopAgentUsage(lastReplyError);
   const [until,setUntil]=useState(resumeAt);
+  const [currentActor,setCurrentActor]=useState(takeoverActor);
   const [now,setNow]=useState(Date.now);
   const [dialog,setDialog]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   useEffect(()=>{
     setUntil(resumeAt);
+    setCurrentActor(takeoverActor);
     setNow(Date.now());
-  },[resumeAt]);
+  },[resumeAt,takeoverActor]);
   const paused=until>now;
   useEffect(()=>{
     if(!paused)return;
@@ -31,6 +33,7 @@ export function ConversationTakeover({item,resumeAt,canReply,openPlans,lastReply
   async function update(minutes) {
     const result=await api('messenger/takeover','PATCH',{channel:item.channelId,sender:item.senderId,minutes});
     setUntil(result.agentResumeAt);
+    setCurrentActor(result.takeoverActor);
     setNow(Date.now());
     setError('');
   }
@@ -51,7 +54,7 @@ export function ConversationTakeover({item,resumeAt,canReply,openPlans,lastReply
   return <>
     <section className={'takeover-panel'+(paused||limited?' paused':'')} aria-label={copy('Chế độ trả lời')}>
       <div>
-        <Chip status={paused||limited?'review':'replied'}>{copy(label)}</Chip>
+        <Chip status={paused||limited?'review':'replied'}>{paused&&currentActor?copy('Đang tiếp quản')+' · '+workActorLabel(currentActor,copy):copy(label)}</Chip>
         <p className="dim">{paused
           ?<>{copy('Agent tự bật lại sau')} <time>{countdown}</time>{' · '}{new Intl.DateTimeFormat(intl,{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(until)}</>
           :copy(limited?(usage?.canReset&&usage.limitDepleted?'Chủ Shop có thể đặt lại hạn mức trong Cấu hình agent.':

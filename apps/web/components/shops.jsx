@@ -1,5 +1,6 @@
 'use client';
 
+import { StaffActivity } from './staff-activity.jsx';
 import { ListPagination, useListPage } from './list-pagination.jsx';
 
 import { useDisplayLocale } from '../lib/display-locale.jsx';
@@ -9,7 +10,7 @@ import { api, formatDate } from '../lib/workspace.js';
 import { Dialog } from './forms.jsx';
 import { Button, Chip, Empty, Field, MetricGrid, Title } from './ui.jsx';
 
-const permissions=[['chat:read','Xem tin nhắn'],['chat:reply','Trả lời'],['order:manage','Xem đơn hàng']];
+const permissions=[['chat:read','Xem tin nhắn'],['chat:reply','Trả lời'],['order:manage','Xem đơn hàng'],['order:create','Tạo đơn hàng']];
 const statusLabels={ACTIVE:'Đang hoạt động',INVITED:'Chờ chấp nhận',SUSPENDED:'Tạm khóa'};
 
 function PagePermissions({ channels, orders, initial=[] }) {
@@ -22,6 +23,8 @@ function PagePermissions({ channels, orders, initial=[] }) {
       else next.delete(permission);
       if(permission==='chat:reply'&&checked)next.add('chat:read');
       if(permission==='chat:read'&&!checked)next.delete('chat:reply');
+      if(permission==='order:create'&&checked)next.add('order:manage');
+      if(permission==='order:manage'&&!checked)next.delete('order:create');
       return {...previous,[id]:[...next]};
     });
   }
@@ -33,7 +36,7 @@ function PagePermissions({ channels, orders, initial=[] }) {
     {!channels.length&&<p className="dim">{copy("Shop chưa có Page để phân quyền.")}</p>}
     {pages.items.map((page)=><div className="shop-page-permission" key={page.id}>
       <strong>{page.name}</strong>
-      <div>{permissions.filter(([key])=>key!=='order:manage'||orders).map(([key,label])=><label key={key}>
+      <div>{permissions.filter(([key])=>!key.startsWith('order:')||(orders&&(key!=='order:create'||page.purpose==='sales'))).map(([key,label])=><label key={key}>
         <input type="checkbox" checked={grants[page.id]?.includes(key)??false}
           onChange={(event)=>toggle(page.id,key,event.target.checked)}/> {copy(label)}
       </label>)}</div>
@@ -42,10 +45,11 @@ function PagePermissions({ channels, orders, initial=[] }) {
   </fieldset>;
 }
 
-export function ShopMembers({ state, accessRevision }) {
+export function ShopMembers({ state, accessRevision, activityVersion, openWorkItem }) {
   const {copy}=useDisplayLocale();
   const [items,setItems]=useState(null),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [dialog,setDialog]=useState(null),[revision,setRevision]=useState(0);
+  const [showStats,setShowStats]=useState(false);
   useEffect(()=>{
     const controller=new AbortController();
     api('shop/members','GET',undefined,controller.signal).then(({items})=>{
@@ -78,10 +82,15 @@ export function ShopMembers({ state, accessRevision }) {
       action={<Button variant="primary" icon="user" onClick={()=>setDialog({kind:'invite'})}>{copy("Mời nhân viên")}</Button>}/>
     {error&&<p role="alert" className="notice">{copy(error)}</p>}
     {notice&&<p role="status" className="notice">{copy(notice)}</p>}
-    {items&&<section className="card shop-table"><table>
+    <div className="settings-tabs" role="group" aria-label={copy('Cài đặt nhân viên')}>
+      <Button aria-pressed={!showStats} onClick={()=>setShowStats(false)}>{copy('Thành viên')}</Button>
+      <Button aria-pressed={showStats} onClick={()=>setShowStats(true)}>{copy('Thống kê nhân viên')}</Button>
+    </div>
+    {showStats&&state.memberRole==='OWNER'&&<StaffActivity accessRevision={accessRevision} activityVersion={activityVersion} openWorkItem={openWorkItem}/>}
+    {!showStats&&items&&<section className="card shop-table"><table>
       <thead><tr><th>{copy("Thành viên")}</th><th>{copy("Vai trò")}</th><th>{copy("Trạng thái")}</th><th>{copy("Page được gán")}</th><th>{copy("Thao tác")}</th></tr></thead>
       <tbody>{members.items.map((member)=><tr key={member.id}>
-        <td><strong>{member.name}</strong><small className="dim">{member.email}</small></td>
+        <td><strong>{member.name}</strong><small className="dim">{member.code?member.code+' · ':''}{member.email}</small></td>
         <td>{member.role==='OWNER'?copy("Chủ Shop"):copy("Nhân viên")}</td>
         <td><Chip status={member.status==='ACTIVE'?'replied':'review'}>{copy(statusLabels[member.status])}</Chip></td>
         <td>{member.role==='OWNER'?copy("Tất cả"):member.grants.length}</td>

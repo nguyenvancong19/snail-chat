@@ -1,4 +1,5 @@
-import { access, get, run, transaction } from '../db/store.mjs';
+import { displayWorkActor, recordWorkEvent, workActor } from '../shops/work-activity.mjs';
+import { access, get, run, transaction, uid } from '../db/store.mjs';
 import { agentIncluded, requirePlanFeature } from '../billing/plan-features.mjs';
 import { ensure, string } from '../http/validation.mjs';
 
@@ -37,18 +38,24 @@ export async function setConversationTakeover(user,body) {
     // The worker locks the same contact before starting an automatic send.
     await run(`INSERT INTO messenger_contacts(channel_id,sender_id,last_inbound)
       VALUES($1,$2,$3) ON CONFLICT (channel_id,sender_id) DO NOTHING`,channel.id,sender,last.created);
-    const contact=await get(`SELECT agent_resume_at FROM messenger_contacts
+    const contact=await get(`SELECT agent_resume_at,takeover_actor FROM messenger_contacts
       WHERE channel_id=$1 AND sender_id=$2 FOR UPDATE`,channel.id,sender);
     const now=Date.now();
     const resumeAt=minutes?now+minutes*60_000:Math.min(contact.agent_resume_at,now);
-    if(resumeAt!==contact.agent_resume_at){
-      await run(`UPDATE messenger_contacts SET agent_resume_at=$3
-        WHERE channel_id=$1 AND sender_id=$2`,channel.id,sender,resumeAt);
+    if(minutes||contact.agent_resume_at>now){
+      const actor=await workActor(channel.shop_id,user.id);
+      const stillPaused=contact.agent_resume_at>now;
+      const kind=!minutes?'release':stillPaused&&contact.takeover_actor?.id===actor.id?'extend':'takeover';
+      await run(`UPDATE messenger_contacts SET agent_resume_at=$3,takeover_actor=$4
+        WHERE channel_id=$1 AND sender_id=$2`,channel.id,sender,resumeAt,minutes?JSON.stringify(actor):null);
+      await recordWorkEvent(channel,{id:uid(),kind,subject:sender,at:now,actor});
+      contact.takeover_actor=minutes?actor:null;
     }
     if(minutes){
       await run(`UPDATE inbox_messages SET status='review',reply=NULL,automatic=0,automatic_ack=0,bot_category=$3
         WHERE channel_id=$1 AND sender_id=$2 AND status='queued' AND automatic=1`,channel.id,sender,agentTakeoverNote);
     }
-    return {agentResumeAt:resumeAt};
+    return {agentResumeAt:resumeAt,...(user.memberRole==='OWNER'
+      ?{takeoverActor:resumeAt>now?displayWorkActor(contact.takeover_actor):null}:{})};
   });
 }

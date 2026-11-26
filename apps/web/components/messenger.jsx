@@ -6,7 +6,7 @@ import { AgentProductReview } from './agent-product-review.jsx';
 import { useDisplayLocale } from '../lib/display-locale.jsx';
 
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { activityLabels, api, formatDate } from '../lib/workspace.js';
+import { activityLabels, api, formatDate, workActorLabel } from '../lib/workspace.js';
 import { BotReplyPicker, Dialog } from './forms.jsx';
 import { Button, Field, FilePicker } from './ui.jsx';
 
@@ -117,11 +117,11 @@ export function MessengerTimeline({ items, outbound=[], onQuote, selectedMid, fo
       ...(message.greeting?[{key:message.id+'-greeting',mid:message.greetingMid,by:'page',label:'Lời chào tự động',
         text:message.greeting,created:message.created}]:[]),
       ...(message.previousReplies??[]).map((entry,index)=>({
-        key:message.id+'-previous-'+index,by:'page',label:'Page',mid:entry.mid,text:entry.text,created:entry.sentAt,
+        key:message.id+'-previous-'+index,by:'page',label:entry.actor?workActorLabel(entry.actor,copy):entry.automatic?copy('AI Agent'):'Page',mid:entry.mid,text:entry.text,created:entry.sentAt,
         quote:entry.quote,attachments:entry.attachment?[entry.attachment]:[],
       })),
       ...(reply?[{key:message.id+'-reply',mid:message.replyMid,by:'page',
-        label:(message.reviewReply?copy('Agent · Shop chuyển tiếp'):message.automatic?'Bot':'Page')+(message.status==='replied'?'':' · '+activityLabels[message.status]),
+        label:(message.replyActor?workActorLabel(message.replyActor,copy):message.reviewReply?copy('Agent · Shop chuyển tiếp'):message.automatic?copy('AI Agent'):'Page')+(message.status==='replied'?'':' · '+activityLabels[message.status]),
         text:message.reply,created:message.sentAt??message.created,quote:message.replyQuote,
         attachments:message.replyAttachment?[message.replyAttachment]:[]}]:[]),
     ];

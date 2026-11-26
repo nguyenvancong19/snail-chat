@@ -1,4 +1,5 @@
-import { pageSize } from '../db/pagination.mjs';
+import { workDetails, workOverview } from '../shops/work-activity.mjs';
+import { pageNumber, pageSize } from '../db/pagination.mjs';
 import { ownerOnly } from '../shops/tenant.mjs';
 import { listAlertSounds, readAlertSound, resetAlertSound, soundKind, soundUploadLimit, toggleAlertSound, uploadAlertSound } from '../shops/alert-sounds.mjs';
 import { requirePlanFeature } from '../billing/plan-features.mjs';
@@ -28,6 +29,18 @@ export class WorkspaceController {
   @Get('bootstrap')
   async bootstrap(@Req() req: AppRequest, @Res() res: Response) {
     return json(res, 200, await bootstrap(req.actor, req.get('x-shop-id'), req.get('x-snailchat-account-list')==='paged'));
+  }
+
+  @Get('shop/work-activity')
+  async workOverview(@Req() req: AppRequest, @Query('channel') channel?: string, @Query('days') days?: string) {
+    return workOverview(req.actor,{channel:string(channel,50),days:Number(choicesOf(days??'7',['7','30']))});
+  }
+
+  @Get('shop/work-activity/details')
+  async workDetails(@Req() req: AppRequest, @Query('channel') channel?: string, @Query('days') days?: string,
+    @Query('person') person?: string, @Query('role') role?: string, @Query('page') page?: string) {
+    return workDetails(req.actor,{channel:string(channel,50),days:Number(choicesOf(days??'7',['7','30'])),
+      person:string(person,100,{required:true}),role:choicesOf(role,['OWNER','STAFF']),page:pageNumber(page)});
   }
 
   @Get('shop/alert-sounds')

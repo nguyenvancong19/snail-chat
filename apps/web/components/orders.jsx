@@ -4,7 +4,7 @@ import { ListPagination } from './list-pagination.jsx';
 
 import { useDisplayLocale } from '../lib/display-locale.jsx';
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { api, formatDate, orderGoodsTotal, orderLinesText } from '../lib/workspace.js';
+import { api, formatDate, orderGoodsTotal, orderLinesText, workActorLabel } from '../lib/workspace.js';
 import { Dialog } from './forms.jsx';
 import { OrderPrint } from './order-print.jsx';
 import { CreateOrder, GhnOrderActions, OrderAction, OrderMenu } from './order-actions.jsx';
@@ -82,9 +82,16 @@ function OrderList({ channel, pendingVerifications=0, refreshWorkspace, owner, a
   const dateTime=(value)=>formatDate(value,intl);
   const [result,setResult]=useState(null),[status,setStatus]=useState(''),[code,setCode]=useState(activityTarget?.kind==='orders'?activityTarget.source:''),[search,setSearch]=useState(activityTarget?.kind==='orders'?activityTarget.source:'');
   const [page,setPage]=useState(1),[revision,setRevision]=useState(0),[error,setError]=useState('');
-  const [archived,setArchived]=useState(false),[createOpen,setCreateOpen]=useState(false),[action,setAction]=useState(null);
+  const [archived,setArchived]=useState(activityTarget?.kind==='orders'&&activityTarget.archived===true),[createOpen,setCreateOpen]=useState(false),[action,setAction]=useState(null);
   const [feedback,setFeedback]=useState(null),[day,setDay]=useState('');
   const [panel,setPanel]=useState(owner&&activityTarget?.kind==='verification'?'buyers':null),[detail,setDetail]=useState(null);
+  const focusWorkOrder=useRef(activityTarget?.kind==='orders'&&activityTarget?.openDetail===true);
+  useEffect(()=>{
+    if(!focusWorkOrder.current||!result)return;
+    focusWorkOrder.current=false;
+    const order=result.items.find(item=>item.code===activityTarget.source);
+    if(order)setDetail(order);
+  },[result,activityTarget]);
   const [picked,setPicked]=useState(()=>new Set()),[printOrders,setPrintOrders]=useState(null);
   const [edit,setEdit]=useState(null),[busy,setBusy]=useState(false);
   const [carriers,setCarriers]=useState([]),[connection,setConnection]=useState(null),[shipmentOrder,setShipmentOrder]=useState(null);
@@ -204,7 +211,7 @@ function OrderList({ channel, pendingVerifications=0, refreshWorkspace, owner, a
       <input id="order-code" value={code} maxLength={16} onChange={(event)=>setCode(event.target.value)}/>
       <Button type="submit">{t('findOrder')}</Button>
       <Button aria-pressed={archived} onClick={()=>{setArchived(!archived);setPage(1);}}>{t('hiddenOrders')}</Button>
-      {owner&&channel.purpose==='sales'&&<Button variant="primary" onClick={()=>setCreateOpen(true)}>{t('create')}</Button>}
+      {channel.permissions.includes('order:create')&&channel.purpose==='sales'&&<Button variant="primary" onClick={()=>setCreateOpen(true)}>{t('create')}</Button>}
       <Button onClick={()=>setRevision((value)=>value+1)}>{t('refresh')}</Button>
     </form>
     <div className="order-status-bar" role="group" aria-label={t('orderFilter')}>
@@ -293,6 +300,8 @@ function OrderList({ channel, pendingVerifications=0, refreshWorkspace, owner, a
       <p><strong>{detail.customer}</strong> · {detail.phone}<br/>{detail.address}</p>
       <p>{orderLinesText(detail)} · {money(orderGoodsTotal(detail))}</p>
       <p className="dim">{copy("Ngày tạo")} {dateTime(detail.created)}</p>
+      {owner&&<p className="dim">{copy("Người tạo đơn")} · {detail.createdBy?workActorLabel(detail.createdBy,copy):
+        detail.bot_created?copy('AI Agent'):copy('Chưa ghi nhận người tạo')}</p>}
       {detail.ghn_error&&<p className="formerror" role="status">{detail.ghn_error}</p>}
       {detail.shipment&&<ShipmentInfo shipment={detail.shipment} carrier={detail.carrier} canSync={owner}/>}
     </Dialog>}

@@ -1,3 +1,4 @@
+import { recordWorkEvent, workActor } from '../shops/work-activity.mjs';
 import { pageSize } from '../db/pagination.mjs';
 import { agentCanAnswer, agentTakeoverNote } from '../workspace/inbox-workflow.mjs';
 import { agentIncluded, automationAllowed, automationPauseNote, shopFeatures, withoutFaqs } from '../billing/plan-features.mjs';
@@ -713,14 +714,16 @@ export async function queueReply(item,reply,messaging=false,requestId=null,{quot
   const media=attachment?{type:attachment.type,name:attachment.name,size:attachment.size}:null;
   const payload=quote||media?JSON.stringify({quote,attachment:media}):null;
   await transaction(async()=>{
+    const actor=actorId?await workActor((await get('SELECT shop_id FROM channels WHERE id=$1',item.channel_id))?.shop_id,actorId):null;
     const result=await run(`UPDATE inbox_messages SET status='queued',reply=$1,automatic=0,automatic_ack=0,reply_error=NULL,
       previous_replies=CASE WHEN status='replied' AND reply IS NOT NULL THEN
         previous_replies||jsonb_build_array(jsonb_build_object('text',reply,'sentAt',COALESCE(sent_at,created),
-          'requestId',reply_request_id,'mid',reply_remote_id,'quote',reply_payload->'quote','attachment',reply_payload->'attachment'))
-        ELSE previous_replies END,reply_request_id=$4,sent_at=NULL,reply_remote_id=NULL,reply_payload=$5,queued_by=$6
+          'requestId',reply_request_id,'mid',reply_remote_id,'quote',reply_payload->'quote','attachment',reply_payload->'attachment',
+          'actor',CASE WHEN automatic=0 THEN reply_actor END,'automatic',automatic<>0))
+        ELSE previous_replies END,reply_request_id=$4,sent_at=NULL,reply_remote_id=NULL,reply_payload=$5,queued_by=$6,reply_actor=$7
       WHERE id=$2 AND status IN ('review','replied') AND created>$3
         AND ($4::text IS NULL OR (reply_request_id IS DISTINCT FROM $4 AND
-          NOT previous_replies @> jsonb_build_array(jsonb_build_object('requestId',$4))))`,reply,item.id,cutoff,requestId,payload,actorId);
+          NOT previous_replies @> jsonb_build_array(jsonb_build_object('requestId',$4))))`,reply,item.id,cutoff,requestId,payload,actorId,actor?JSON.stringify(actor):null);
     if(result.changes){
       if(attachment)await run('INSERT INTO messenger_uploads(message_id,request_id,content_type,data) VALUES($1,$2,$3,$4)',
         item.id,requestId,attachment.contentType,attachment.data);
@@ -1328,7 +1331,11 @@ export async function replyTick(messaging=false) {
         const now=receipt.sentAt??Date.now();
         const updated=await run(`UPDATE inbox_messages SET status='replied',sent_at=$3,reply_remote_id=$4,reply_error=NULL
           WHERE id=$1 AND status='sending' AND reply_claim_until=$2`,id,claimUntil,now,receipt.id);
-        if(!updated.changes||!item.reply_request_id?.startsWith('verification-'))return;
+        if(!updated.changes)return;
+        if(!item.automatic&&item.reply_actor)await recordWorkEvent(c,{
+          id:'reply:'+c.id+':'+receipt.id,kind:'reply',subject:item.sender_id,at:now,actor:item.reply_actor,
+        });
+        if(!item.reply_request_id?.startsWith('verification-'))return;
         const code=item.reply_request_id.slice('verification-'.length);
         const verified=await get(`SELECT * FROM order_verifications WHERE channel_id=$1 AND code=$2
           AND notice_message_id=$3 AND status='verified' FOR UPDATE`,item.channel_id,code,id);

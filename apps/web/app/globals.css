@@ -770,3 +770,18 @@ dialog:has(.order-print-frame){width:min(960px,calc(100vw - 24px))}
 .agent-inactive-body p,.agent-reset-confirmation {margin:0}
 .agent-inactive-body .button {min-height:44px}
 .agent-reset-confirmation {grid-column:1/-1}
+
+.staff-work {display:grid;gap:12px}
+.staff-work .metrics {grid-template-columns:repeat(3,minmax(0,1fr));margin:0}
+.staff-work-filters {display:flex;align-items:end;flex-wrap:wrap;gap:8px 12px;padding:12px 16px}
+.staff-work-filters .field {min-width:min(100%,150px);margin:0}
+.staff-work-filters select,.staff-work-table .button {min-height:44px}
+.staff-work-filters>small {margin-inline-start:auto;align-self:center}
+.staff-work-table {max-width:100%;overflow-x:auto}
+.staff-work-table table {min-width:510px}
+.staff-work-table th small,.staff-work-table td small {display:block;color:var(--muted)}
+.staff-work-table .staff-work-number {text-align:end;font-variant-numeric:tabular-nums}
+.staff-takeover-history {margin:6px 0 10px;padding:5px 9px;border:1px solid var(--line);border-radius:8px}
+.staff-takeover-history summary {cursor:pointer;padding:5px 0}
+.staff-takeover-history ul {max-height:150px;overflow:auto;margin:4px 0;padding-inline-start:18px}
+@media(max-width:590px){.staff-work .metrics {grid-template-columns:minmax(0,1fr)}}

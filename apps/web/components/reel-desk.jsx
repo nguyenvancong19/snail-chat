@@ -384,6 +384,20 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
     setSelectedChannel(target.item.channelId);
     setActivityTarget({...target,kind,version:crypto.randomUUID()});
   }
+  async function openWorkItem(item,signal) {
+    if(item.kind==='order'){
+      go('orders');
+      setSelectedChannel(item.channelId);
+      setActivityTarget({kind:'orders',source:item.subject,pageId:item.channelId,archived:item.archived,
+        openDetail:true,version:crypto.randomUUID()});
+      return;
+    }
+    const result=await api('activity?'+new URLSearchParams({kind:'message',channel:item.channelId,sender:item.subject}),
+      'GET',undefined,signal);
+    if(signal?.aborted)return;
+    if(!result.items?.length)throw new Error('Không tìm thấy hội thoại.');
+    navigateNotification('message',{item:result.items[0]});
+  }
   function renderDialog() {
     if(!dialog)return null;
     const channelId=dialog.type==='post-bot'?dialog.value?.channel?.id:
@@ -563,7 +577,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
           {copy("Shop vượt hạn mức Page hoặc nhân viên. Các Page tạm dừng xử lý.")}
           {owner?<Button onClick={()=>go('billing')}>{copy("Chọn tài nguyên hoặc nâng gói")}</Button>:<span> {copy("Liên hệ chủ Shop để tiếp tục.")}</span>}
         </div>}
-        {switching?<p className="dim" role="status">{copy("Đang chuyển Shop…")}</p>:<View key={workspace.user.id+':'+(workspace.activeShopId??'')+':'+(activityTarget?.version??id)} state={workspace} workspaceTab={workspaceTab} activityVersion={activityVersion} accessRevision={accessRevision} botKind={botKind} setBotKind={setBotKind} activityTarget={activityTarget} go={go} open={open} connect={connect} save={save} refreshWorkspace={refresh} notify={notify}
+        {switching?<p className="dim" role="status">{copy("Đang chuyển Shop…")}</p>:<View key={workspace.user.id+':'+(workspace.activeShopId??'')+':'+(activityTarget?.version??id)} state={workspace} workspaceTab={workspaceTab} activityVersion={activityVersion} accessRevision={accessRevision} botKind={botKind} setBotKind={setBotKind} activityTarget={activityTarget} go={go} openWorkItem={openWorkItem} open={open} connect={connect} save={save} refreshWorkspace={refresh} notify={notify}
         selectedChannel={selectedChannel} setSelectedChannel={(channel)=>{setActivityTarget(null);setSelectedChannel(channel);}} onAcceptInvitation={(id)=>switchShop(id)} onSwitchShop={switchShop}
         appearanceDraft={appearanceDraft} setAppearanceDraft={(draft)=>setAppearance({accountId,draft})}
         systemDark={systemDark} onTryAppearance={tryAppearance} loadInsights={(key)=>api('insights?channel='+encodeURIComponent(key))}/>}

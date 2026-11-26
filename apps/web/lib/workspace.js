@@ -105,3 +105,8 @@ export function accountHome(user) {
   if(!user)return '/login';
   return user.isSuperAdmin===true?'/admin':'/dashboard';
 }
+
+export function workActorLabel(actor,copy) {
+  return actor.role==='OWNER'?[copy('Chủ Shop'),actor.name].filter(Boolean).join(' · ')
+    :[actor.name,actor.code].filter(Boolean).join(' · ');
+}

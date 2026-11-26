@@ -1,3 +1,4 @@
+import { shopWorkActivitySchema } from './migrations/021-shop-work-activity.mjs';
 import { shopAiDailyUsageSchema } from './migrations/020-shop-ai-daily-usage.mjs';
 import { aiProviderFailoverSchema } from './migrations/019-ai-provider-failover.mjs';
 import { aiProvidersSchema } from './migrations/018-ai-providers.mjs';
@@ -143,6 +144,10 @@ export async function initializeDatabase() {
     if(!await get("SELECT id FROM schema_migrations WHERE id='020-shop-ai-daily-usage'")){
       await run(shopAiDailyUsageSchema);
       await run("INSERT INTO schema_migrations(id) VALUES('020-shop-ai-daily-usage')");
+    }
+    if(!await get("SELECT id FROM schema_migrations WHERE id='021-shop-work-activity'")){
+      await run(shopWorkActivitySchema);
+      await run("INSERT INTO schema_migrations(id) VALUES('021-shop-work-activity')");
     }
   });
 }
