@@ -431,7 +431,7 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   const groups=admin?[adminNav]:[
     ...userGroups.map((group)=>group.filter(([key])=>{
       if(key==='channels')return canRecover;
-      if(key==='bots')return owner&&!!workspace.activeShopId;
+      if(key==='bots')return owner&&workspace.hasPurchasedPlan===true;
       if(!workspace.activeShopId||workspace.shopAccessLimited)return false;
       if(key==='orders')return orders&&(owner||staff)&&workspace.channels.some((channel)=>channel.permissions?.includes('order:manage'));
       if((key==='messages'&&!messages)||(key==='comments'&&!comments))return false;

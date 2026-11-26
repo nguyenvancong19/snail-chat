@@ -1,5 +1,6 @@
 import { pageSize } from '../db/pagination.mjs';
 import { agentIncluded, automationAllowed, catalogIncluded, requirePlanFeature, shopFeatures, withoutFaqs } from '../billing/plan-features.mjs';
+import { hasPurchasedPlan } from '../billing/plan-changes.mjs';
 import { shopLimits, shopUsage } from '../billing/limits.mjs';
 import { get, all, run, access } from '../db/store.mjs';
 import { ensureDefaultShop, pageGrants, requireShop, usableShop, userShops, workspaceShop, visiblePageIds } from '../shops/tenant.mjs';
@@ -68,6 +69,7 @@ export async function bootstrap(user,selectedShop,pagedAccounts=false) {
   data.activeShopId=current?.id??null;
   data.memberRole=current?.role??null;
   data.shopAccessLimited=!!current&&!usableShop(current,now);
+  data.hasPurchasedPlan=current?.role==='OWNER'&&await hasPurchasedPlan(current.id);
   if(!current||data.shopAccessLimited)return data;
   user=await requireShop(user,current.id);
   const plan=await get('SELECT * FROM shops WHERE id=$1',current.id);

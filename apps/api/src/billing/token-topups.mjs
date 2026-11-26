@@ -5,6 +5,7 @@ import { ensure } from '../http/validation.mjs';
 import { publicUsage } from '../ai/usage-quota.mjs';
 import { paymentQr, sepayAccount } from './sepay.mjs';
 import { readPage } from '../db/pagination.mjs';
+import { hasPurchasedPlan } from './plan-changes.mjs';
 
 function checkoutInfo(order){
   if(!order)return null;
@@ -52,10 +53,11 @@ export async function startTopup(user,shopId,expected){
   return transaction(async()=>{
     const shop=await owner(user,shopId,true);
     const now=Date.now();
+    const usage=await publicUsage(shop.id,now);
+    ensure(usage?.canTopup&&await hasPurchasedPlan(shop.id),409,
+      'Chỉ nạp thêm token khi đã hết hạn mức và hết lượt đặt lại.');
     const pending=await get("SELECT * FROM ai_topup_orders WHERE shop_id=$1 AND status='PENDING' AND expires_at>$2 ORDER BY created_at DESC LIMIT 1",shop.id,now);
     if(pending)return checkoutInfo(pending);
-    const usage=await publicUsage(shop.id,now);
-    ensure(usage?.canTopup,409,'Chỉ nạp thêm token khi đã hết hạn mức và hết lượt đặt lại.');
     const settings=await topupSettings();
     ensure(settings.enabled,409,'Nạp token hiện chưa mở bán.');
     checkVersion(settings.version,expected);

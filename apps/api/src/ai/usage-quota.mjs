@@ -1,6 +1,8 @@
 import { all, get, run, transaction, uid } from '../db/store.mjs';
 import { AppError, ensure } from '../http/validation.mjs';
 import { dayBucket, dayLength } from './provider-usage.mjs';
+import { agentIncluded } from '../billing/plan-features.mjs';
+import { effectiveFlags } from '../billing/plan-options.mjs';
 
 const windows=[['5h',5*3_600_000,'ai_5h_tokens'],['week',7*86_400_000,'ai_week_tokens']];
 
@@ -12,7 +14,7 @@ function periods(shop,now){
 }
 
 const planQuery=`SELECT s.ai_cycle_anchor,s.status,s.expired_at,s.ai_wallet_tokens,s.ai_wallet_reserved,
-  p.ai_5h_tokens,p.ai_week_tokens,p.ai_reset_limit
+  p.ai_5h_tokens,p.ai_week_tokens,p.ai_reset_limit,p.agent_mode,p.feature_flags
   FROM shops s JOIN subscription_plans p ON p.code=s.subscription_plan WHERE s.id=$1`;
 
 function active(shop,now){
@@ -40,11 +42,13 @@ export async function publicUsage(shopId,now=Date.now()){
   if(!shop)return null;
   const available=active(shop,now)&&shop.ai_5h_tokens>0;
   const walletTokens=shop.ai_wallet_tokens;
-  if(!available)return {available:false,windows:[],walletTokens,canReset:false,canTopup:false};
+  if(!available)return {available:false,windows:[],walletTokens,limitDepleted:false,canReset:false,canTopup:false};
   const {current,resetsLeft}=await usageWindows(shopId,shop,now);
   const exhausted=current.some(exhaustedWindow);
+  const limitDepleted=current.some(period=>(period.tokens??0)>=period.limit);
+  const agent=agentIncluded(shop)&&effectiveFlags(shop).agent;
   return {available:true,walletTokens,resetsLeft,resetLimit:shop.ai_reset_limit,resetsAt:current[1].resetAt,
-    blocked:exhausted,canReset:exhausted&&resetsLeft>0,canTopup:exhausted&&resetsLeft===0,
+    blocked:exhausted,limitDepleted,canReset:exhausted&&resetsLeft>0,canTopup:agent&&limitDepleted&&resetsLeft===0,
     windows:current.map(({kind,resetAt,limit,tokens=0})=>({
       kind,resetAt,percentUsed:tokens>=limit?100:Math.min(99,Math.round(100*tokens/limit)),
     }))};

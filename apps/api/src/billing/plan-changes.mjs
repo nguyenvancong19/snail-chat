@@ -4,6 +4,15 @@ import { ensure } from '../http/validation.mjs';
 import { lockBillingShop } from './limits.mjs';
 
 export const day=86_400_000;
+
+export async function hasPurchasedPlan(shopId) {
+  const result=await get(`SELECT EXISTS (
+    SELECT 1 FROM subscription_orders WHERE shop_id=$1 AND plan_code<>'FREE'
+      AND paid_at IS NOT NULL AND status IN ('PAID','SCHEDULED')
+  ) AS purchased`,shopId);
+  return result.purchased;
+}
+
 export async function planTier(code) {
   return (await get('SELECT tier FROM subscription_plans WHERE code=$1',code))?.tier??0;
 }

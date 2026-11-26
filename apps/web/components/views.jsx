@@ -617,7 +617,7 @@ function CommentThread({ item, channel, save, activityVersion, focus, onHandled 
 
   function privateAction(comment) {
     if(!canReply||channel.platform!=='fb'||!channel.messenger||!channel.privateRepliesEnabled||!comment)return null;
-    if(comment.privateReply==='sent')return <Chip status="replied">{comment.privateReplyAutomatic?copy("Bot đã nhắn riêng"):copy("Đã nhắn riêng")}</Chip>;
+    if(comment.privateReply==='sent')return <Chip status="replied">{comment.privateReplyAutomatic?copy("Agent đã nhắn riêng"):copy("Đã nhắn riêng")}</Chip>;
     if(comment.privateReply==='sending')return <Chip status="sending">{copy("Đang nhắn riêng")}</Chip>;
     if(comment.privateReply==='uncertain')return <Chip status="review">{copy("Kiểm tra tin trong Messenger")}</Chip>;
     if(!comment.privateReplyInWindow)return null;
@@ -876,7 +876,7 @@ function Activity({ state, save, go, activityVersion, kind, selectedChannel, set
     </div>
     {canSync&&syncOpen&&<CommentSyncPicker key={channel} channel={source} queueEnabled={state.meta?.commentSync}
       onSynced={()=>{setStatus('');setSyncRevision((value)=>value+1);}}/>}
-    <ActivityItems openPlans={state.shops?.some(shop=>shop.id===state.activeShopId&&shop.role==='OWNER')?()=>go('bots'):undefined} key={kind+':'+channel+':'+status+':'+(activityTarget?.version??'')} {...{kind,channel,status,state,save,templateRevision,onHandled}} target={activityTarget?.kind===kind?activityTarget:null} activityVersion={revision}/>
+    <ActivityItems openPlans={state.shops?.some(shop=>shop.id===state.activeShopId&&shop.role==='OWNER')?()=>go(state.hasPurchasedPlan?'bots':'billing'):undefined} key={kind+':'+channel+':'+status+':'+(activityTarget?.version??'')} {...{kind,channel,status,state,save,templateRevision,onHandled}} target={activityTarget?.kind===kind?activityTarget:null} activityVersion={revision}/>
     {messaging&&templatesOpen&&channels.length>0&&<MessengerTemplates channels={channels} selectedChannel={channel}
       close={()=>setTemplatesOpen(false)} onChange={()=>setTemplateRevision((value)=>value+1)}/>}
   </>;

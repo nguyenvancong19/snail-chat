@@ -13,6 +13,7 @@ export function AgentUsage({usage,planName}) {
   if(!usage?.available)return null;
   const percent=new Intl.NumberFormat(intl,{style:'percent'});
   const exhausted=usage.windows.filter(item=>item.percentUsed===100);
+  const canReset=usage.canReset&&usage.limitDepleted;
   return <section className="card ai-usage">
     <CardHead title={copy('Hạn mức gói')} subtitle={copy('Dùng chung cho tất cả Page trong Shop.')}
       action={planName&&<Chip status="active">{planName}</Chip>}/>
@@ -27,11 +28,12 @@ export function AgentUsage({usage,planName}) {
         </div>;
       })}
     </div>
-    {(usage.blocked||exhausted.length>0)&&<p className="notice" role="status">{copy(usage.canReset
+    {(usage.blocked||exhausted.length>0)&&<p className="notice" role="status">{copy(canReset
       ?'Đã chạm hạn mức. Chủ Shop có thể dùng lượt đặt lại trong Cấu hình agent.'
       :usage.walletTokens>0?'Đã chạm hạn mức gói. AI có thể sử dụng token trong ví.'
-        :'Đã hết hạn mức AI. Bạn vẫn có thể trả lời thủ công.')}
-      {exhausted.length>0&&!usage.canReset&&!usage.walletTokens&&<> {copy('AI có thể dùng lại từ')} {formatDate(Math.max(...exhausted.map(item=>item.resetAt)),intl)}.</>}</p>}
+        :exhausted.length?'Đã hết hạn mức AI. Bạn vẫn có thể trả lời thủ công.'
+          :'Hạn mức còn lại chưa đủ cho lượt này. Hãy thử yêu cầu ngắn hơn hoặc đợi hạn mức tự đặt lại.')}
+      {exhausted.length>0&&!canReset&&!usage.walletTokens&&<> {copy('AI có thể dùng lại từ')} {formatDate(Math.max(...exhausted.map(item=>item.resetAt)),intl)}.</>}</p>}
   </section>;
 }
 

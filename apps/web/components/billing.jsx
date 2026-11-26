@@ -256,7 +256,7 @@ function WalletOrders({orders,orderPage,onPage,view,admin=false}) {
   </div>;
 }
 
-export function TokenWallet({shop,usage,refreshUsage,applyReset}) {
+export function TokenWallet({shop,usage,refreshUsage,applyReset,readOnly=false}) {
   const {copy,intl}=useDisplayLocale();
   const number=new Intl.NumberFormat(intl);
   const money=vnd(intl);
@@ -287,7 +287,7 @@ export function TokenWallet({shop,usage,refreshUsage,applyReset}) {
       try{
         const next=await api('billing/token-wallet/orders/'+id+'?'+new URLSearchParams({shop}),'GET',undefined,controller.signal);
         if(controller.signal.aborted)return;
-        if(next.status!=='PENDING')await Promise.all([load(controller.signal),refreshUsage(controller.signal)]);
+        if(next.status!=='PENDING')await Promise.all([load(controller.signal),refreshUsage?.(controller.signal)]);
         if(!controller.signal.aborted)setOrder(current=>current?.id===id?next:current);
       }catch(error){if(!controller.signal.aborted)setError(error.message);}
       finally{checking=false;}
@@ -296,41 +296,53 @@ export function TokenWallet({shop,usage,refreshUsage,applyReset}) {
   },[shop,id,pending,load,refreshUsage]);
   const snapshot=usage??summary?.usage;
   const offer=summary?.offer;
-  return <section className="card ai-usage">
-    <CardHead title={copy('Ví token AI')}/>
-    <div className="ai-usage-layout">
-      <div className="ai-usage-window">
-        <div className="ai-usage-label"><strong>{copy('Token đang sở hữu')}</strong>
-          <b>{snapshot?number.format(snapshot.walletTokens??0):'—'}</b></div>
-        <small className="dim">{copy('Token trong ví không hết hạn. Dùng khi hạn mức gói không còn đủ và Shop đã hết lượt đặt lại.')}</small>
+  const depleted=!readOnly&&snapshot?.limitDepleted;
+  const visible=snapshot?.walletTokens>0||depleted;
+  const canReset=depleted&&snapshot.canReset;
+  const canBuy=depleted&&snapshot.canTopup;
+  const pendingCheckout=canBuy&&summary?.pending?.expires_at>Date.now();
+  useEffect(()=>{
+    if((dialog==='buy'&&!canBuy)||(dialog==='reset'&&!canReset))setDialog('');
+  },[dialog,canBuy,canReset]);
+  return <>
+    {visible&&<section className="card ai-usage">
+      <CardHead title={copy('Ví token AI')}/>
+      <div className="ai-usage-layout">
+        <div className="ai-usage-window">
+          <div className="ai-usage-label"><strong>{copy('Token đang sở hữu')}</strong>
+            <b>{number.format(snapshot.walletTokens??0)}</b></div>
+          <small className="dim">{copy(readOnly
+            ?'Số dư được giữ lại và có thể dùng tiếp khi Shop có gói Agent đang hoạt động.'
+            :'Token trong ví không hết hạn. Dùng khi hạn mức gói không còn đủ và Shop đã hết lượt đặt lại.')}</small>
+        </div>
+        {!readOnly&&snapshot.available&&<div className="ai-usage-window">
+          <div className="ai-usage-label"><strong>{copy('Lượt đặt lại còn lại')}</strong>
+            <b>{number.format(snapshot.resetsLeft??0)}</b></div>
+          {snapshot.resetsAt&&<small className="dim">{copy('Cấp lại lượt vào')} {formatDate(snapshot.resetsAt,intl)}</small>}
+        </div>}
       </div>
-      <div className="ai-usage-window">
-        <div className="ai-usage-label"><strong>{copy('Lượt đặt lại còn lại')}</strong>
-          <b>{snapshot?.available?number.format(snapshot.resetsLeft??0):'—'}</b></div>
-        {snapshot?.resetsAt&&<small className="dim">{copy('Cấp lại lượt vào')} {formatDate(snapshot.resetsAt,intl)}</small>}
-      </div>
-    </div>
-    <div className="action-row ai-wallet-actions">
-      <Button disabled={!snapshot?.canReset} onClick={()=>setDialog('reset')}>{copy('Đặt lại hạn mức')}</Button>
-      {summary?.pending?.expires_at>Date.now()?<Button variant="primary" onClick={()=>setOrder(summary.pending)}>{copy('Mở đơn đang chờ')}</Button>:
-        <Button variant="primary" disabled={!snapshot?.canTopup||!offer||!summary?.sepayReady}
-          onClick={()=>setDialog('buy')}>{copy('Nạp token')}</Button>}
-    </div>
-    <p className="dim ai-wallet-help">{copy(!snapshot?.available?'Cần gói AI đang hoạt động để sử dụng token.':
-      snapshot?.canTopup?(!offer?'Nạp token hiện chưa mở bán.':!summary?.sepayReady?'Thanh toán SePay chưa được cấu hình.':'Có thể nạp token khi cần dùng tiếp.'):
-      'Đặt lại khi chạm hạn mức. Nạp thêm sau khi dùng hết lượt đặt lại.')}</p>
-    {error&&<p role="alert" className="notice">{copy(error)}</p>}
-    {resetConfirmed&&!snapshot?.blocked&&<p role="status" className="notice">{copy('Đã đặt lại hạn mức. Agent có thể xử lý tin nhắn mới theo cấu hình của kênh.')}</p>}
-    {summary&&<details className="ai-wallet-history"><summary>{copy('Lịch sử nạp token')}</summary>
-      <WalletOrders {...summary} onPage={setPage} view={setOrder}/></details>}
-    {dialog==='reset'&&<Dialog title={copy('Đặt lại hạn mức')} label={copy('Dùng một lượt đặt lại')}
+      {(canReset||canBuy)&&<div className="action-row ai-wallet-actions">
+        {canReset&&<Button onClick={()=>setDialog('reset')}>{copy('Đặt lại hạn mức')}</Button>}
+        {canBuy&&(pendingCheckout?<Button variant="primary" onClick={()=>setOrder(summary.pending)}>{copy('Mở đơn đang chờ')}</Button>:
+          <Button variant="primary" disabled={!offer||!summary?.sepayReady}
+            onClick={()=>setDialog('buy')}>{copy('Nạp token qua SePay')}</Button>)}
+      </div>}
+      {canBuy&&summary&&!pendingCheckout&&(!offer||!summary.sepayReady)&&<p className="dim ai-wallet-help">
+        {copy(!offer?'Nạp token hiện chưa mở bán.':'Thanh toán SePay chưa được cấu hình.')}</p>}
+      {error&&<p role="alert" className="notice">{copy(error)}</p>}
+      {summary&&<details className="ai-wallet-history"><summary>{copy('Lịch sử nạp token')}</summary>
+        <WalletOrders {...summary} onPage={setPage} view={setOrder}/></details>}
+    </section>}
+    {resetConfirmed&&!snapshot?.blocked&&<p role="status" className="notice agent-reset-confirmation">
+      {copy('Đã đặt lại hạn mức. Agent có thể xử lý tin nhắn mới theo cấu hình của kênh.')}</p>}
+    {dialog==='reset'&&canReset&&<Dialog title={copy('Đặt lại hạn mức')} label={copy('Dùng một lượt đặt lại')}
       close={()=>setDialog('')} submit={async()=>{
         const updated=await api('billing/token-wallet/reset','POST',{shop});
         applyReset(updated);
         setResetConfirmed(true);
         void refreshUsage().catch(()=>{});
       }}><p>{copy('Khôi phục hạn mức dự trữ tương đương cho khung đã hết. Thời điểm làm mới tự động không thay đổi.')}</p></Dialog>}
-    {dialog==='buy'&&offer&&<Dialog title={copy('Nạp token')} label={copy('Tạo mã thanh toán')}
+    {dialog==='buy'&&canBuy&&offer&&<Dialog title={copy('Nạp token qua SePay')} label={copy('Tạo mã thanh toán')}
       close={()=>setDialog('')} submit={async()=>{
         const next=await api('billing/token-wallet/orders','POST',{shop},undefined,offer.version);
         setOrder(next);
@@ -338,9 +350,11 @@ export function TokenWallet({shop,usage,refreshUsage,applyReset}) {
       }}>
       <p><strong>{number.format(offer.tokens)} token</strong> · {money(offer.price_vnd)}</p>
       <p className="dim">{copy('SePay xác nhận chuyển khoản rồi hệ thống cộng token vào ví của Shop.')}</p>
+      <p className="dim">{copy('Số dư được giữ lại và có thể dùng tiếp khi Shop có gói Agent đang hoạt động.')}</p>
     </Dialog>}
-    {order&&<Checkout key={order.id} order={order} close={()=>{setOrder(null);void load().catch(()=>{});}}/>}
-  </section>;
+    {order&&<Checkout key={order.id} order={canBuy?order:{...order,checkout:undefined}}
+      close={()=>{setOrder(null);void load().catch(()=>{});}}/>}
+  </>;
 }
 
 function AdminTokenWallet(){

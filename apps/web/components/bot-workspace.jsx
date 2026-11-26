@@ -14,7 +14,7 @@ import { AiDraft } from './openrouter.jsx';
 import { AgentDocuments } from './page-documents.jsx';
 import { TemplatesEditor } from './messenger.jsx';
 import { BotForm, Dialog } from './forms.jsx';
-import { Button, Empty, Field, PageAvatar, Title } from './ui.jsx';
+import { Button, CardHead, Chip, Empty, Field, PageAvatar, Title } from './ui.jsx';
 
 function BotScope({ channels, channel, kind, setSelectedChannel, setBotKind, showSurface=true }) {
   const {copy}=useDisplayLocale();
@@ -280,31 +280,49 @@ function FacebookAgentSettings({channel,save,orderManagement}){
   </>;
 }
 
-function AgentQuotaSection({state,shop,accessRevision}) {
+function AgentQuotaSection({shop,accessRevision}) {
   const {copy,locale}=useDisplayLocale();
-  const {usage,error,refresh,applyReset}=useAgentUsage(accessRevision,{history:true,enabled:!state.shopAccessLimited});
+  const {usage,error,refresh,applyReset}=useAgentUsage(accessRevision,{history:true});
   const planName=planDisplayName(locale,shop.subscriptionPlan,shop.planName);
+  const showWallet=usage?.limitDepleted||usage?.walletTokens>0;
   return <section className="agent-quota-section" aria-labelledby="agent-quota-title">
-    <h2 id="agent-quota-title">{copy('Mức sử dụng & Ví token')}</h2>
+    <h2 id="agent-quota-title">{copy(showWallet?'Mức sử dụng & Ví token':'Mức sử dụng Agent')}</h2>
     {error&&<p className="notice" role="alert">{copy(error)}</p>}
     <div className="agent-quota-grid">
       <AgentUsage usage={usage} planName={planName}/>
-      {state.memberRole==='OWNER'&&<TokenWallet shop={shop.id} usage={usage} refreshUsage={refresh} applyReset={applyReset}/>}
+      <TokenWallet shop={shop.id} usage={usage} refreshUsage={refresh} applyReset={applyReset}/>
     </div>
     <DailyAgentUsage daily={usage?.daily}/>
   </section>;
+}
+
+function InactiveAgent({shop,go}) {
+  const {copy}=useDisplayLocale();
+  const expired=shop?.expiredAt!=null&&shop.expiredAt<=Date.now();
+  const locked=shop?.status==='SUSPENDED';
+  return <>
+    <Title title={copy("Cấu hình bot")} subtitle={copy("Theo dõi hạn mức AI và ví token của Shop.")}/>
+    <section className="card agent-inactive">
+      <CardHead title={copy(locked?'Shop đang bị khóa':expired?'Gói có Agent đã hết hạn':'Gói hiện tại không có AI agent.')}
+        action={<Chip status="off">{copy('Agent tạm dừng')}</Chip>}/>
+      <div className="agent-inactive-body">
+        <p className="dim">{copy(locked?'Liên hệ quản trị viên để mở khóa Shop.'
+          :expired?'Vui lòng gia hạn gói có Agent để sử dụng tính năng này.'
+            :'Chọn gói có Agent để sử dụng tính năng này.')}</p>
+        {!locked&&<Button variant="primary" onClick={()=>go('billing')}>{copy(expired?'Gia hạn gói':'Xem gói dịch vụ')}</Button>}
+      </div>
+    </section>
+    {shop&&<div className="agent-quota-grid"><TokenWallet shop={shop.id} readOnly/></div>}
+  </>;
 }
 
 export function BotConfiguration(props) {
   const {copy}=useDisplayLocale();
   const {channel,kind,mode,policy,faqs}=scope(props);
   const shop=props.state.shops?.find(item=>item.id===props.state.activeShopId);
-  const quota=shop&&<AgentQuotaSection key={shop.id} state={props.state} shop={shop} accessRevision={props.accessRevision}/>;
-  if(props.state.shopAccessLimited||!props.state.planFeatures?.agent_enabled)return <>
-    <Title title={copy("Cấu hình bot")} subtitle={copy("Theo dõi hạn mức AI và ví token của Shop.")}/>
-    {quota}
-    <Empty>{copy("Thiết lập theo Page cần gói có Agent đang hoạt động.")}</Empty>
-  </>;
+  const quota=shop&&<AgentQuotaSection key={shop.id} shop={shop} accessRevision={props.accessRevision}/>;
+  if(props.state.shopAccessLimited||!props.state.planFeatures?.agent_enabled)
+    return <InactiveAgent shop={shop} go={props.go}/>;
   if(channel?.platform==='fb')return <>
     <Title title={copy("Cấu hình bot")} subtitle={copy("Một AI agent cho bình luận, Messenger và chốt đơn.")}/>
     {quota}
