@@ -24,14 +24,14 @@ const userGroups=[
   [['dashboard','Tổng quan','grid',Overview]],
   [['channels','Quản lý kênh','channels',Channels],['analytics','Thống kê kênh','chart',Analytics]],
   [['messages','Tin nhắn','send',Messages],['comments','Bình luận','chat',Comments],['posts','Bài đăng','document',PublishedPosts]],
-  [['bots','Cấu hình agent','bot',BotConfiguration],['bot-knowledge','FAQ & Chat nhanh','document',BotKnowledge]],
-  [['orders','Đơn hàng','document',Orders]],
+  [['bots','Cấu hình agent','bot',BotConfiguration],['bot-knowledge','FAQ & Chat nhanh','book',BotKnowledge]],
+  [['orders','Đơn hàng','package',Orders]],
 ];
 const settingsTabs=['appearance','language','sounds'];
 const settingsEntry=['settings','Cài đặt tài khoản','settings',AccountSettings];
-const adminNav=[['dashboard','Quản lý Shop','grid',AdminShops],['users-overview','Tổng quan người dùng','grid',AdminOverview],
+const adminNav=[['dashboard','Quản lý Shop','shop',AdminShops],['users-overview','Tổng quan người dùng','grid',AdminOverview],
   ['users','Quản lý người dùng','user',AdminUsers],['system','Thống kê hệ thống','chart',AdminSystem],
-  ['billing','Quản lý gói','document',AdminBilling],['openrouter','Cấu hình AI','bot',AdminAiSettings],settingsEntry];
+  ['billing','Quản lý gói','tag',AdminBilling],['openrouter','Cấu hình AI','bot',AdminAiSettings],settingsEntry];
 
 export default function SnailChat({ adminArea=false, loginArea=false }) {
 
@@ -48,6 +48,39 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   const [appearance,setAppearance]=useState(null),[appearanceTrial,setAppearanceTrial]=useState(null);
   const systemDark=useSystemTheme();
   const accountId=workspace?.user?.id;
+  const sidebarKey=accountId ? 'snailchat.sidebar.compact.'+(adminArea?'admin.':'workspace.')+accountId : null;
+  const [sidebarPreference,setSidebarPreference]=useState(null);
+  const [navHint,setNavHint]=useState(null);
+  const mobileMenuButton=useRef(null), mobileCloseButton=useRef(null);
+  const sidebarCompact=sidebarPreference?.key===sidebarKey&&sidebarPreference?.compact===true;
+  useEffect(()=>{
+    if(!sidebarKey)return;
+    let compact=false;
+    try{compact=window.localStorage.getItem(sidebarKey)==='1';}catch{}
+    setSidebarPreference({key:sidebarKey,compact});
+  },[sidebarKey]);
+  useEffect(()=>{
+    const desktop=window.matchMedia('(width > 690px)');
+    const clear=()=>{setMobile(false);setNavHint(null);};
+    desktop.addEventListener('change',clear);
+    return ()=>desktop.removeEventListener('change',clear);
+  },[]);
+  function toggleSidebar() {
+    const compact=!sidebarCompact;
+    setNavHint(null);
+    setSidebarPreference({key:sidebarKey,compact});
+    try{window.localStorage.setItem(sidebarKey,compact?'1':'0');}catch{}
+  }
+  function closeMobileSidebar() {
+    setMobile(false);
+    window.requestAnimationFrame(()=>mobileMenuButton.current?.focus());
+  }
+  function showNavHint(event, text) {
+    if(!sidebarCompact||event.currentTarget.contains(event.relatedTarget))return;
+    const rect=event.currentTarget.getBoundingClientRect();
+    setNavHint({text,left:rect.right+8,top:rect.top+rect.height/2});
+  }
+
   useEffect(()=>{
     setAppearance(null);
     setAppearanceTrial(null);
@@ -398,17 +431,17 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
   const groups=admin?[adminNav]:[
     ...userGroups.map((group)=>group.filter(([key])=>{
       if(key==='channels')return canRecover;
+      if(key==='bots')return owner&&!!workspace.activeShopId;
       if(!workspace.activeShopId||workspace.shopAccessLimited)return false;
       if(key==='orders')return orders&&(owner||staff)&&workspace.channels.some((channel)=>channel.permissions?.includes('order:manage'));
       if((key==='messages'&&!messages)||(key==='comments'&&!comments))return false;
       if(key==='bot-knowledge'&&!quickReplies&&!faq)return false;
-      if(key==='bots'&&!agent)return false;
       return owner||(staff&&['messages','comments'].includes(key));
     }).map((entry)=>entry[0]==='bot-knowledge'&&(!faq||!quickReplies)?[entry[0],faq?'FAQ':'Chat nhanh',...entry.slice(2)]:entry)),
-    canRecover?[['billing','Gói dịch vụ','document',ServicePlans]]:[],
+    canRecover?[['billing','Gói dịch vụ','tag',ServicePlans]]:[],
     [
       ...(!staff&&workspace.invitations?.length?[['invitations','Lời mời tham gia Shop','user',ShopInvitations]]:[]),
-      ...(owner&&!workspace.shopAccessLimited?[['members','Cài đặt nhân viên','user',ShopMembers]]:[]),
+      ...(owner&&!workspace.shopAccessLimited?[['members','Cài đặt nhân viên','users',ShopMembers]]:[]),
       settingsEntry,
     ],
   ].filter((group)=>group.length);
@@ -463,9 +496,18 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
     if(item.action.shopId&&item.action.shopId!==workspace.activeShopId)void switchShop(item.action.shopId,item.action.view);
     else go(item.action.view);
   }
-  return <DisplayLocale.Provider value={locale}><DisplayCatalog.Provider value={displayCatalog}><div className="account-theme" data-theme={theme.mode} style={theme.style}><div className="layout">
-    {mobile&&<button type="button" className="sidebar-scrim" aria-label={t('closeMenu')} onClick={()=>setMobile(false)}/>}
-    <aside className={'sidebar '+(mobile?'open':'')}><Brand/>
+  return <DisplayLocale.Provider value={locale}><DisplayCatalog.Provider value={displayCatalog}><div className="account-theme" data-theme={theme.mode} style={theme.style}><div className="layout" data-sidebar-compact={sidebarCompact}>
+    {mobile&&<button type="button" className="sidebar-scrim" aria-label={t('closeMenu')} onClick={closeMobileSidebar}/>}
+    <aside className={'sidebar '+(mobile?'open':'')} id="workspace-sidebar" onKeyDown={event=>{
+      if(event.key==='Escape'){setNavHint(null);if(mobile)closeMobileSidebar();}
+    }}>
+      <div className="sidebar-head"><Brand/>
+        <button type="button" className="iconbtn sidebar-toggle" aria-controls="workspace-navigation" aria-expanded={!sidebarCompact}
+          aria-label={t(sidebarCompact?'expandSidebar':'collapseSidebar')} title={t(sidebarCompact?'expandSidebar':'collapseSidebar')}
+          onClick={toggleSidebar}><Icon name="sidebar"/></button>
+        <button type="button" className="iconbtn sidebar-mobile-close" ref={mobileCloseButton} aria-label={t('closeMenu')}
+          onClick={closeMobileSidebar}><Icon name="x"/></button>
+      </div>
       {!admin&&<div className="workspace-picker">
         <label className="shop-switcher">{t('workspace')}
           {shopOptions.length>1||!currentShop?<span className="shop-control"><Icon name="grid"/><select value={workspace.activeShopId??''} disabled={switching||!shopOptions.length}
@@ -481,13 +523,30 @@ export default function SnailChat({ adminArea=false, loginArea=false }) {
         {!staff&&!shopOptions.some(({role})=>role==='OWNER')&&<Button icon="plus" onClick={()=>open('create-shop')}>{copy("Tạo Shop riêng")}</Button>}
       </div>}
       <p className="navcaption">{section}</p>
-      <nav className="navgroup" aria-label={section}>{groups.map((group)=><div className="nav-section" key={group[0][0]}>{group.map(([key,name,icon])=><button type="button" key={key}
-        className="navbtn" aria-current={key===id?'page':undefined} onClick={()=>go(key)}><Icon name={icon}/>{navLabel(key,name)}
-        {pending[key]>0&&<span className="navcount work-count" aria-label={pending[key]+(key==='orders'?copy(" đơn chờ xác minh"):copy(" cần xử lý"))}>{pending[key]}</span>}</button>)}</div>)}</nav>
+      <nav className="navgroup" id="workspace-navigation" aria-label={section} onScroll={()=>setNavHint(null)}>
+        {groups.map(group=><div className="nav-section" key={group[0][0]}>{group.map(([key,name,icon])=>{
+          const itemLabel=navLabel(key,name);
+          const count=pending[key]||0;
+          const countLabel=count+(key==='orders'?copy(" đơn chờ xác minh"):copy(" cần xử lý"));
+          return <button type="button" key={key} className="navbtn" aria-current={key===id?'page':undefined}
+            aria-label={count ? itemLabel+', '+countLabel : itemLabel}
+            onMouseEnter={event=>showNavHint(event,itemLabel)} onMouseLeave={()=>setNavHint(null)}
+            onFocus={event=>showNavHint(event,itemLabel)} onBlur={()=>setNavHint(null)}
+            onClick={()=>{setNavHint(null);if(mobile)closeMobileSidebar();go(key);}}>
+            <Icon name={icon}/><span className="sidebar-nav-label">{itemLabel}</span>
+            {count>0&&<span className="navcount work-count" aria-hidden="true">{count}</span>}
+          </button>;
+        })}</div>)}
+      </nav>
+      {sidebarCompact&&navHint&&<span className="sidebar-nav-hint" style={{left:navHint.left,top:navHint.top}} aria-hidden="true">{navHint.text}</span>}
       <div className="sidebottom"><AccountMenu user={workspace.user} shopLabel={shopLabel} go={go} open={open} logout={logout}/></div>
     </aside>
     <div className="main"><header className="topbar"><div className="crumb">
-      <button className="iconbtn mobile-menu" type="button" aria-label={t('openMenu')} onClick={()=>setMobile(!mobile)}><Icon name="menu"/></button>
+      <button className="iconbtn mobile-menu" type="button" ref={mobileMenuButton} aria-controls="workspace-sidebar" aria-expanded={mobile}
+        aria-label={t(mobile?'closeMenu':'openMenu')} onClick={()=>{
+          if(mobile){closeMobileSidebar();return;}
+          setMobile(true);window.requestAnimationFrame(()=>mobileCloseButton.current?.focus());
+        }}><Icon name="menu"/></button>
       <span className="homecrumb">{section}</span><span aria-hidden="true">/</span><b>{label}</b>
     </div><div className="topright"><Notifications key={workspace.user.id+':'+workspace.activeShopId+':'+switching} activityVersion={activityVersion}
         enabled={!admin&&!switching&&!workspace.shopAccessLimited&&!!workspace.activeShopId} alerts={alerts.items} onOpenAlert={openAlert}

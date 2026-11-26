@@ -7,7 +7,7 @@ import { activeShop } from '../lib/workspace.js';
 import { Icon } from './icons.jsx';
 
 export function Brand({href}={}) {
-  const content=<><span className="brandmark"><Icon name="logo"/></span>SnailChat</>;
+  const content=<><span className="brandmark"><Icon name="logo"/></span><span className="brand-name">SnailChat</span></>;
   return href?<a className="brand" href={href}>{content}</a>:<div className="brand">{content}</div>;
 }
 export function Button({ icon, variant='', type='button', children, ...props }) {

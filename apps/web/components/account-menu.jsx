@@ -18,7 +18,7 @@ export function AccountMenu({ user, shopLabel, go, open, logout }) {
     action();
   }
   return <details className="account-menu">
-    <summary className="account-trigger">
+    <summary className="account-trigger" aria-label={user.name ? t('profile')+': '+user.name : t('profile')}>
       <AccountAvatar user={user}/>
       <span className="account-name"><strong>{user.name}</strong><small>{shopLabel||user.email}</small></span>
       <Icon name="chevron"/>

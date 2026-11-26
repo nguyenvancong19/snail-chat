@@ -54,9 +54,9 @@ export function ConversationTakeover({item,resumeAt,canReply,openPlans,lastReply
         <Chip status={paused||limited?'review':'replied'}>{copy(label)}</Chip>
         <p className="dim">{paused
           ?<>{copy('Agent tự bật lại sau')} <time>{countdown}</time>{' · '}{new Intl.DateTimeFormat(intl,{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Ho_Chi_Minh'}).format(until)}</>
-          :copy(limited?(usage?.canReset?'Chủ Shop có thể đặt lại hạn mức trong Gói dịch vụ.':
+          :copy(limited?(usage?.canReset?'Chủ Shop có thể đặt lại hạn mức trong Cấu hình agent.':
             usage?.walletTokens>0?'Agent có thể dùng token trong ví nếu số dư đủ cho lượt gọi.':
-            'Kiểm tra hạn mức trong Gói dịch vụ hoặc trả lời thủ công.')
+            'Kiểm tra hạn mức trong Cấu hình agent hoặc trả lời thủ công.')
             :'Agent có thể phản hồi tin nhắn mới theo cấu hình của kênh.')}</p>
       </div>
       {canReply&&<div className="rowactions">

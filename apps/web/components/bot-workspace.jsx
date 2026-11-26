@@ -1,6 +1,8 @@
 'use client';
 
-import { ShopAgentUsage } from './agent-usage.jsx';
+import { AgentUsage, DailyAgentUsage, useAgentUsage } from './agent-usage.jsx';
+import { TokenWallet } from './billing.jsx';
+import { planDisplayName } from '../lib/locale.js';
 import { ListPagination, useListPage } from './list-pagination.jsx';
 
 import { useDisplayLocale } from '../lib/display-locale.jsx';
@@ -278,12 +280,34 @@ function FacebookAgentSettings({channel,save,orderManagement}){
   </>;
 }
 
+function AgentQuotaSection({state,shop,accessRevision}) {
+  const {copy,locale}=useDisplayLocale();
+  const {usage,error,refresh,applyReset}=useAgentUsage(accessRevision,{history:true,enabled:!state.shopAccessLimited});
+  const planName=planDisplayName(locale,shop.subscriptionPlan,shop.planName);
+  return <section className="agent-quota-section" aria-labelledby="agent-quota-title">
+    <h2 id="agent-quota-title">{copy('Mức sử dụng & Ví token')}</h2>
+    {error&&<p className="notice" role="alert">{copy(error)}</p>}
+    <div className="agent-quota-grid">
+      <AgentUsage usage={usage} planName={planName}/>
+      {state.memberRole==='OWNER'&&<TokenWallet shop={shop.id} usage={usage} refreshUsage={refresh} applyReset={applyReset}/>}
+    </div>
+    <DailyAgentUsage daily={usage?.daily}/>
+  </section>;
+}
+
 export function BotConfiguration(props) {
   const {copy}=useDisplayLocale();
   const {channel,kind,mode,policy,faqs}=scope(props);
+  const shop=props.state.shops?.find(item=>item.id===props.state.activeShopId);
+  const quota=shop&&<AgentQuotaSection key={shop.id} state={props.state} shop={shop} accessRevision={props.accessRevision}/>;
+  if(props.state.shopAccessLimited||!props.state.planFeatures?.agent_enabled)return <>
+    <Title title={copy("Cấu hình bot")} subtitle={copy("Theo dõi hạn mức AI và ví token của Shop.")}/>
+    {quota}
+    <Empty>{copy("Thiết lập theo Page cần gói có Agent đang hoạt động.")}</Empty>
+  </>;
   if(channel?.platform==='fb')return <>
     <Title title={copy("Cấu hình bot")} subtitle={copy("Một AI agent cho bình luận, Messenger và chốt đơn.")}/>
-    <ShopAgentUsage/>
+    {quota}
     <BotScope {...props} channels={props.state.channels} channel={channel} kind={kind} showSurface={false}/>
     {props.state.planFeatures?.agent_mode==='SCHEDULED'&&<p className="notice">
       {props.state.planFeatures.agent_active?copy("Agent đang trong ca."):copy("Agent hiện ngoài ca.")} {copy("Tin đến ngoài ca vẫn có trong hộp thư để shop xử lý thủ công.")}
@@ -293,7 +317,7 @@ export function BotConfiguration(props) {
   const modeLabel={auto:'Kết hợp tự gửi và duyệt tay',review:'Chỉ duyệt thủ công',rules:'Theo từng quy tắc',greeting:'Lời chào theo lượt chờ',off:'Đang tắt'};
   return <>
     <Title title={copy("Cấu hình bot")} subtitle={copy("Chọn cách bot xử lý tin nhắn và bình luận của từng Page.")}/>
-    <ShopAgentUsage/>
+    {quota}
     {channel?<><BotScope {...props} channels={props.state.channels} channel={channel} kind={kind}/>
       <div className="bot-workspace-grid">
         <div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { AgentUsage, allowanceLabels } from './agent-usage.jsx';
+import { allowanceLabels } from './agent-usage.jsx';
 import { ListPagination, useListPage } from './list-pagination.jsx';
 
 import { useDisplayLocale } from '../lib/display-locale.jsx';
@@ -256,7 +256,7 @@ function WalletOrders({orders,orderPage,onPage,view,admin=false}) {
   </div>;
 }
 
-function TokenWallet({shop,usage,refreshUsage,applyReset}) {
+export function TokenWallet({shop,usage,refreshUsage,applyReset}) {
   const {copy,intl}=useDisplayLocale();
   const number=new Intl.NumberFormat(intl);
   const money=vnd(intl);
@@ -287,8 +287,8 @@ function TokenWallet({shop,usage,refreshUsage,applyReset}) {
       try{
         const next=await api('billing/token-wallet/orders/'+id+'?'+new URLSearchParams({shop}),'GET',undefined,controller.signal);
         if(controller.signal.aborted)return;
-        setOrder(next);
-        if(next.status!=='PENDING'){await load(controller.signal);await refreshUsage(controller.signal);}
+        if(next.status!=='PENDING')await Promise.all([load(controller.signal),refreshUsage(controller.signal)]);
+        if(!controller.signal.aborted)setOrder(current=>current?.id===id?next:current);
       }catch(error){if(!controller.signal.aborted)setError(error.message);}
       finally{checking=false;}
     },3000);
@@ -401,15 +401,9 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
   useEffect(()=>{setPlanIndex(0);setMonths(1);setHistoryPage(1);setOrder(null);setOffer(null);},[shop]);
   useEffect(()=>{setPlanIndex((index)=>Math.min(index,lastPlanIndex));},[lastPlanIndex]);
   const path='billing?'+new URLSearchParams({shop,page:historyPage});
-  const usageRevision=useRef(0);
-  const applyReset=(usage)=>{
-    usageRevision.current++;
-    setData(previous=>previous?.shop?.id===shop?{...previous,aiUsage:usage}:previous);
-  };
   const load=useCallback(async(signal)=>{
-    const revision=usageRevision.current;
     const result=await api(path,'GET',undefined,signal);
-    if(!signal?.aborted&&revision===usageRevision.current)setData(normalizeBilling(result));
+    if(!signal?.aborted)setData(normalizeBilling(result));
   },[path]);
   useEffect(()=>{
     if(!shop)return;
@@ -527,8 +521,6 @@ export function ServicePlans({ state, refreshWorkspace, notify, go, accessRevisi
         <div><strong>{details.usage.pages}/{details.limits.pages}</strong><span>{t('usedChannels')}</span></div>
         <div><strong>{details.usage.staff+details.usage.invitations}/{details.limits.staff}</strong><span>{t('staffSlots')}{details.usage.invitations>0?copy(" · gồm lời mời chờ"):''}</span></div>
       </section>
-      {details.aiUsage&&<AgentUsage usage={details.aiUsage}/>}
-      <TokenWallet key={shop} shop={shop} usage={details.aiUsage} refreshUsage={load} applyReset={applyReset}/>
       {over&&<div className="notice workspace-quota" role="alert">
         {copy("Shop vượt hạn mức hiện tại. Hãy chọn Page và nhân viên cần giữ hoặc mua gói đủ chỗ để tiếp tục.")}
         <Button onClick={()=>go('channels')}>{copy("Mở Quản lý kênh")}</Button>

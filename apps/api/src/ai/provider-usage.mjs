@@ -1,9 +1,9 @@
 import { all, run } from '../db/store.mjs';
 
-const dayLength = 86_400_000;
+export const dayLength = 86_400_000;
 const vietnamOffset = 7 * 3_600_000;
 
-function dayBucket(timestamp) {
+export function dayBucket(timestamp) {
   return Math.floor((timestamp + vietnamOffset) / dayLength);
 }
 

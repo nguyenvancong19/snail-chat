@@ -8,18 +8,6 @@ import { chartDate, TimeChart } from './stat-charts.jsx';
 
 const endpoint = 'admin/openrouter';
 const emptyBackup = {enabled:false,provider:null,model:null,configured:false};
-const scenarios = {
-  healthy:'Nhà cung cấp chính hoạt động',
-  outage:'Nhà cung cấp chính gián đoạn',
-  balance:'API key chính hết số dư',
-  both:'Cả hai nhà cung cấp gián đoạn',
-};
-const outcomes = {
-  ok:'Đã tạo phản hồi.',
-  outage:'Kết nối gián đoạn.',
-  balance:'API key hết số dư.',
-};
-
 function providerLabel(providers, id) {
   return providers.find(item=>item.id===id)?.label ?? id;
 }
@@ -54,7 +42,7 @@ function UsageChart({providers}) {
   const number = new Intl.NumberFormat(intl);
   const axis = new Intl.NumberFormat(intl,{notation:'compact',maximumFractionDigits:1});
   const series = [{key:'reportedTokens',name:copy('Token do nhà cung cấp báo'),color:'primary'}];
-  return <section aria-labelledby="ai-usage-heading">
+  return <section className="ai-usage-overview" aria-labelledby="ai-usage-heading">
     <div className="section-head ai-usage-heading"><h2 id="ai-usage-heading">{copy('Mức sử dụng AI')}</h2>
       <Button disabled={!current} onClick={()=>setRefresh(n=>n+1)}>{t('refresh')}</Button></div>
     <div className="ai-usage-controls">
@@ -72,41 +60,6 @@ function UsageChart({providers}) {
         rows={items.map(({date,reportedTokens})=>({label:chartDate(date,intl),values:{reportedTokens}}))}
         axisFormat={value=>axis.format(value)}/>
     </>}
-  </section>;
-}
-
-function RoutingSimulation({settings,providers}) {
-  const {copy,t}=useDisplayLocale();
-  const displayError=useAiError();
-  const [scenario,setScenario]=useState('balance');
-  const [result,setResult]=useState(null);
-  const [error,setError]=useState(''), [busy,setBusy]=useState(false);
-  async function simulate() {
-    setResult(null);setError('');setBusy(true);
-    try {setResult(await api(endpoint+'/simulate','POST',{scenario}));}
-    catch (problem) {setError(problem.message);}
-    finally {setBusy(false);}
-  }
-
-  return <section className="card ai-routing">
-    <CardHead title={copy('Mô phỏng chuyển dự phòng')}/>
-    <div className="ai-provider-body">
-      <p className="dim">{copy('Mô phỏng với cấu hình đã lưu, không gọi API của nhà cung cấp.')}</p>
-      <Field label={copy('Tình huống')}><select value={scenario} disabled={busy}
-        onChange={event=>{setScenario(event.target.value);setResult(null);setError('');}}>
-        {Object.entries(scenarios).map(([value,label])=><option key={value} value={value}>{copy(label)}</option>)}
-      </select></Field>
-      <Button variant="primary" disabled={busy||!settings?.enabled||!settings.configured} onClick={simulate}>
-        {busy?t('loading'):copy('Mô phỏng lượt gọi Agent')}</Button>
-      {error&&<p className="formerror" role="alert">{displayError(error)}</p>}
-      {result&&<div className="ai-routing-result" role="status">
-        <div className="ai-routing-used"><span>{copy('Nhà cung cấp xử lý')}</span>
-          <strong>{result.used ? providerLabel(providers,result.used) : copy('Không có phản hồi')}</strong></div>
-        <ul>{result.attempts.map(({provider,outcome})=><li key={provider}>
-          <strong>{providerLabel(providers,provider)}</strong> · {copy(outcomes[outcome])}
-        </li>)}</ul>
-      </div>}
-    </div>
   </section>;
 }
 
@@ -263,9 +216,6 @@ export function AdminAiSettings() {
         {(conflict||!draft&&error)&&<Button onClick={()=>{setError(null);setReload(n=>n+1);}}>{copy('Tải lại cấu hình đã lưu')}</Button>}
       </div>
     </section>
-    <div className="ai-observability">
-      <UsageChart providers={providers}/>
-      <RoutingSimulation key={saved?.version} settings={saved} providers={providers}/>
-    </div>
+    <UsageChart providers={providers}/>
   </>;
 }

@@ -1,8 +1,8 @@
 import { activeAiConfig } from './settings.mjs';
-import { publicUsage } from './usage-quota.mjs';
+import { dailyPlanUsage, publicUsage } from './usage-quota.mjs';
 import { requestVersion, checkVersion } from '../http/versions.mjs';
 import { requireAgentFeature, requirePlanFeature } from '../billing/plan-features.mjs';
-import { completeJson, simulateAiRouting } from './openrouter-client.js';
+import { completeJson } from './openrouter-client.js';
 import { publicProviders, resolveProvider } from './providers.js';
 import { providerUsage } from './provider-usage.mjs';
 import { Controller, Get, Post, Req, Res } from '@nestjs/common';
@@ -67,7 +67,11 @@ export class OpenRouterController {
 
   @Get('ai/usage')
   async usage(@Req() req: AppRequest) {
-    return publicUsage(req.actor.currentShop.id);
+    const shopId=req.actor.currentShop.id;
+    const now=Date.now();
+    if(req.query.history!=='1'||req.actor.memberRole!=='OWNER')return publicUsage(shopId,now);
+    const [usage,daily]=await Promise.all([publicUsage(shopId,now),dailyPlanUsage(shopId,now)]);
+    return usage&&{...usage,daily};
   }
 
   @Post('ai/draft')
@@ -114,15 +118,6 @@ export class OpenRouterController {
     })).filter((item)=>item.question && item.reply).slice(0,count);
     ensure(items.length, 502, 'Model chưa tạo được FAQ hợp lệ.');
     return json(res, 200, { items });
-  }
-
-  @Post('admin/openrouter/simulate')
-  @RoutePolicy('admin')
-  async simulate(@Req() req: AppRequest) {
-    const body = await jsonBody(req);
-    const scenario = choicesOf(body.scenario, ['healthy','balance','outage','both']);
-    const config = ensure(await activeAiConfig(), 503, 'Quản trị viên chưa bật AI.');
-    return simulateAiRouting(config, scenario);
   }
 
   @Post('admin/openrouter/test')

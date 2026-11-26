@@ -75,6 +75,8 @@ const rows = {
   staff:['Nhân viên','Staff','직원','スタッフ','员工','พนักงาน','ພະນັກງານ'],
   closeMenu:['Đóng menu','Close menu','메뉴 닫기','メニューを閉じる','关闭菜单','ปิดเมนู','ປິດເມນູ'],
   openMenu:['Mở menu','Open menu','메뉴 열기','メニューを開く','打开菜单','เปิดเมนู','ເປີດເມນູ'],
+  collapseSidebar:['Thu gọn thanh bên','Collapse sidebar','사이드바 접기','サイドバーを折りたたむ','收起侧边栏','ย่อแถบด้านข้าง','ຫຍໍ້ແຖບດ້ານຂ້າງ'],
+  expandSidebar:['Mở rộng thanh bên','Expand sidebar','사이드바 펼치기','サイドバーを広げる','展开侧边栏','ขยายแถบด้านข้าง','ຂະຫຍາຍແຖບດ້ານຂ້າງ'],
   yourWorkspace:['Không gian của bạn','Your workspace','내 워크스페이스','マイワークスペース','你的工作区','พื้นที่ทำงานของคุณ','ພື້ນທີ່ເຮັດວຽກຂອງທ່ານ'],
   platformAdmin:['Quản trị nền tảng','Platform administration','플랫폼 관리','プラットフォーム管理','平台管理','การจัดการแพลตฟอร์ม','ຈັດການແພລດຟອມ'],
   channels:['Quản lý kênh','Channels','채널 관리','チャンネル管理','渠道管理','จัดการช่องทาง','ຈັດການຊ່ອງທາງ'],

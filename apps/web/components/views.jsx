@@ -876,7 +876,7 @@ function Activity({ state, save, go, activityVersion, kind, selectedChannel, set
     </div>
     {canSync&&syncOpen&&<CommentSyncPicker key={channel} channel={source} queueEnabled={state.meta?.commentSync}
       onSynced={()=>{setStatus('');setSyncRevision((value)=>value+1);}}/>}
-    <ActivityItems openPlans={state.shops?.some(shop=>shop.id===state.activeShopId&&shop.role==='OWNER')?()=>go('billing'):undefined} key={kind+':'+channel+':'+status+':'+(activityTarget?.version??'')} {...{kind,channel,status,state,save,templateRevision,onHandled}} target={activityTarget?.kind===kind?activityTarget:null} activityVersion={revision}/>
+    <ActivityItems openPlans={state.shops?.some(shop=>shop.id===state.activeShopId&&shop.role==='OWNER')?()=>go('bots'):undefined} key={kind+':'+channel+':'+status+':'+(activityTarget?.version??'')} {...{kind,channel,status,state,save,templateRevision,onHandled}} target={activityTarget?.kind===kind?activityTarget:null} activityVersion={revision}/>
     {messaging&&templatesOpen&&channels.length>0&&<MessengerTemplates channels={channels} selectedChannel={channel}
       close={()=>setTemplatesOpen(false)} onChange={()=>setTemplateRevision((value)=>value+1)}/>}
   </>;

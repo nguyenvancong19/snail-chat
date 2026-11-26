@@ -1,5 +1,6 @@
 import { all, get, run, transaction, uid } from '../db/store.mjs';
 import { AppError, ensure } from '../http/validation.mjs';
+import { dayBucket, dayLength } from './provider-usage.mjs';
 
 const windows=[['5h',5*3_600_000,'ai_5h_tokens'],['week',7*86_400_000,'ai_week_tokens']];
 
@@ -49,6 +50,18 @@ export async function publicUsage(shopId,now=Date.now()){
     }))};
 }
 
+export async function dailyPlanUsage(shopId,now=Date.now()){
+  const last=dayBucket(now);
+  const first=last-6;
+  const totals=await all(`SELECT day_bucket,plan_tokens FROM ai_shop_daily_usage
+    WHERE shop_id=$1 AND day_bucket BETWEEN $2 AND $3`,shopId,first,last);
+  const usage=new Map(totals.map(({day_bucket,plan_tokens})=>[day_bucket,plan_tokens]));
+  return Array.from({length:7},(_,index)=>{
+    const day=first+index;
+    return {date:new Date(day*dayLength).toISOString().slice(0,10),planTokens:usage.get(day)??0};
+  });
+}
+
 export async function resetAllowance(shopId){
   return transaction(async()=>{
     const shop=await get(planQuery+' FOR NO KEY UPDATE OF s FOR SHARE OF p',shopId);
@@ -80,18 +93,23 @@ export function tokenAllowance(body,previous){
   return [five,week,resets];
 }
 
-async function applyReservation(record,actual){
+async function applyReservation(record,actual,now){
   const {shop_id,five_start,week_start,included,wallet}=record;
   const walletUsed=Math.min(wallet,Math.max(0,actual-included));
+  const planUsed=actual-walletUsed;
   await run(`UPDATE ai_token_windows SET tokens=tokens+$4,reserved=reserved-$5 WHERE shop_id=$1 AND
-    ((kind='5h' AND starts_at=$2) OR (kind='week' AND starts_at=$3))`,shop_id,five_start,week_start,actual-walletUsed,included);
+    ((kind='5h' AND starts_at=$2) OR (kind='week' AND starts_at=$3))`,shop_id,five_start,week_start,planUsed,included);
+  // Both quota windows receive the charge, but the daily history counts it once.
+  if(planUsed)await run(`INSERT INTO ai_shop_daily_usage(shop_id,day_bucket,plan_tokens)
+    VALUES($1,$2,$3) ON CONFLICT(shop_id,day_bucket) DO UPDATE
+    SET plan_tokens=ai_shop_daily_usage.plan_tokens+excluded.plan_tokens`,shop_id,dayBucket(now),planUsed);
   if(wallet)await run(`UPDATE shops SET ai_wallet_tokens=ai_wallet_tokens-$2,ai_wallet_reserved=ai_wallet_reserved-$3
     WHERE id=$1`,shop_id,walletUsed,wallet);
 }
 
 async function settleExpired(shopId,now){
   const expired=await all('DELETE FROM ai_token_reservations WHERE shop_id=$1 AND expires<=$2 RETURNING *',shopId,now);
-  for(const record of expired)await applyReservation(record,record.included+record.wallet);
+  for(const record of expired)await applyReservation(record,record.included+record.wallet,now);
   return expired.some(record=>record.wallet);
 }
 
@@ -121,7 +139,7 @@ export async function reserveTokens(shopId,amount){
       }
       const error=new AppError(429,amount>shop.ai_5h_tokens&&resetsLeft>0
         ?'Yêu cầu AI lớn hơn hạn mức của một khung 5 giờ. Hãy rút ngắn nội dung hoặc giảm ngữ cảnh.'
-        :'Hạn mức AI hiện không đủ cho yêu cầu này. Kiểm tra hạn mức trong Gói dịch vụ.');
+        :'Hạn mức AI hiện không đủ cho yêu cầu này. Kiểm tra hạn mức trong Cấu hình agent.');
       if(amount<=shop.ai_5h_tokens)error.retryAfter=Math.max(1,Math.ceil((Math.max(...current
         .filter(p=>(p.tokens??0)+(p.reserved??0)+amount>p.limit).map(p=>p.resetAt))-now)/1000));
       return {error};
@@ -144,7 +162,7 @@ export async function settleTokens(reservation,actual){
     await get('SELECT id FROM shops WHERE id=$1 FOR NO KEY UPDATE',reservation.shopId);
     const record=await get('DELETE FROM ai_token_reservations WHERE id=$1 AND shop_id=$2 RETURNING *',
       reservation.id,reservation.shopId);
-    if(record)await applyReservation(record,actual);
+    if(record)await applyReservation(record,actual,Date.now());
   });
 }
 

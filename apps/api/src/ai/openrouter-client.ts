@@ -73,24 +73,6 @@ async function routeAiRequest(config, execute) {
   }
 }
 
-export async function simulateAiRouting(config, scenario: string) {
-  const attempts = [];
-  let used = null;
-  try {
-    used = await routeAiRequest(config, async ({provider}) => {
-      const outcome = provider === config.provider
-        ? ({healthy:'ok', balance:'balance', outage:'outage', both:'outage'})[scenario]
-        : scenario === 'both' ? 'outage' : 'ok';
-      attempts.push({provider, outcome});
-      if (outcome !== 'ok') throw new ProviderUnavailable(502, outcome);
-      return provider;
-    });
-  } catch (error) {
-    if (!(error instanceof ProviderUnavailable)) throw error;
-  }
-  return {used, attempts};
-}
-
 async function completeWithProvider(config, instruction: string, input, maxTokens: number, schema?: Schema) {
   const provider = config.provider ?? 'openrouter';
   let endpoint;

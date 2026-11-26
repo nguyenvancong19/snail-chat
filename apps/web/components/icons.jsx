@@ -1,4 +1,10 @@
 const paths = {
+  sidebar:'<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/>',
+  shop:'<path d="M4 11v9h16v-9M3 10l2-6h14l2 6a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0Zm7 10v-5h4v5"/>',
+  book:'<path d="M12 6C9 4 6 4 3 5v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14"/>',
+  package:'<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm-8 4.5 8 4.5 8-4.5M12 12v9M8 5.3l8 4.4"/>',
+  tag:'<path d="M3 4h8l10 10-7 7L3 11V4Z"/><circle cx="7.5" cy="8.5" r="1"/>',
+  users:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2m1-15a3 3 0 0 1 0 6m2 2a4 4 0 0 1 3 4v3"/>',
   alert:'<path d="M10.3 4.8 3 18a1 1 0 0 0 .9 1.5h16.2A1 1 0 0 0 21 18L13.7 4.8a2 2 0 0 0-3.4 0ZM12 9v4m0 3h.01"/>',
   document:'<path d="M6 4h8l4 4v12H6zM14 4v5h4M9 13h6m-6 3h6"/>',
   chevron:'<path d="m6 9 6 6 6-6"/>',

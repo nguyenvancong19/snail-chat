@@ -1,19 +1,21 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDisplayLocale } from '../lib/display-locale.jsx';
 import { api, formatDate } from '../lib/workspace.js';
-import { CardHead } from './ui.jsx';
+import { CardHead, Chip } from './ui.jsx';
+import { chartDate, TimeChart } from './stat-charts.jsx';
 
 export const allowanceLabels={'5h':'AI · 5 giờ',week:'AI · 7 ngày'};
 
-export function AgentUsage({usage}) {
+export function AgentUsage({usage,planName}) {
   const {copy,intl}=useDisplayLocale();
   if(!usage?.available)return null;
   const percent=new Intl.NumberFormat(intl,{style:'percent'});
   const exhausted=usage.windows.filter(item=>item.percentUsed===100);
   return <section className="card ai-usage">
-    <CardHead title={copy('Mức sử dụng AI của Shop')} subtitle={copy('Dùng chung cho tất cả Page trong Shop.')}/>
+    <CardHead title={copy('Hạn mức gói')} subtitle={copy('Dùng chung cho tất cả Page trong Shop.')}
+      action={planName&&<Chip status="active">{planName}</Chip>}/>
     <div className="ai-usage-layout">
       {usage.windows.map(({kind,percentUsed,resetAt})=>{
         const label=copy(allowanceLabels[kind]);
@@ -26,25 +28,35 @@ export function AgentUsage({usage}) {
       })}
     </div>
     {(usage.blocked||exhausted.length>0)&&<p className="notice" role="status">{copy(usage.canReset
-      ?'Đã chạm hạn mức. Chủ Shop có thể dùng lượt đặt lại trong Gói dịch vụ.'
+      ?'Đã chạm hạn mức. Chủ Shop có thể dùng lượt đặt lại trong Cấu hình agent.'
       :usage.walletTokens>0?'Đã chạm hạn mức gói. AI có thể sử dụng token trong ví.'
         :'Đã hết hạn mức AI. Bạn vẫn có thể trả lời thủ công.')}
       {exhausted.length>0&&!usage.canReset&&!usage.walletTokens&&<> {copy('AI có thể dùng lại từ')} {formatDate(Math.max(...exhausted.map(item=>item.resetAt)),intl)}.</>}</p>}
   </section>;
 }
 
-export function useShopAgentUsage(reloadKey) {
-  const [usage,setUsage]=useState(null);
+export function useAgentUsage(reloadKey,{history=false,enabled=true}={}) {
+  const [usage,setUsage]=useState(null),[error,setError]=useState('');
+  const latest=useRef(0);
+  const refresh=useCallback(async(signal)=>{
+    if(!enabled)return;
+    const request=++latest.current;
+    const current=()=>request===latest.current&&!signal?.aborted;
+    try{
+      const next=await api(history?'ai/usage?history=1':'ai/usage','GET',undefined,signal);
+      if(current()){setUsage(next);setError('');}
+    }catch(problem){
+      if(current())setError(problem.message);
+    }
+  },[history,enabled]);
   useEffect(()=>{
+    if(!enabled)return;
     const controller=new AbortController();
     let pending=false;
     async function load(){
       if(pending||document.hidden)return;
       pending=true;
-      try{
-        const next=await api('ai/usage','GET',undefined,controller.signal);
-        if(!controller.signal.aborted)setUsage(next);
-      }catch{}
+      try{await refresh(controller.signal);}
       finally{pending=false;}
     }
     void load();
@@ -55,10 +67,32 @@ export function useShopAgentUsage(reloadKey) {
       controller.abort();
       document.removeEventListener('visibilitychange',load);
     };
-  },[reloadKey]);
-  return usage;
+  },[enabled,refresh,reloadKey]);
+
+  function applyReset(next){
+    latest.current++;
+    setUsage(previous=>({...next,daily:previous?.daily}));
+  }
+  return {usage:enabled?usage:null,error:enabled?error:'',refresh,applyReset};
 }
 
-export function ShopAgentUsage() {
-  return <AgentUsage usage={useShopAgentUsage()}/>;
+export function useShopAgentUsage(reloadKey) {
+  return useAgentUsage(reloadKey).usage;
+}
+
+export function DailyAgentUsage({daily}) {
+  const {copy,intl,t}=useDisplayLocale();
+  if(!daily)return null;
+  const number=new Intl.NumberFormat(intl);
+  const compact=new Intl.NumberFormat(intl,{notation:'compact',maximumFractionDigits:1});
+  const total=daily.reduce((sum,{planTokens})=>sum+planTokens,0);
+  return <>
+    <TimeChart title={copy('Mức sử dụng Agent theo ngày')}
+      subtitle={t('lastDays',{count:number.format(7)})+' · '+t('vietnamTime')}
+      rows={daily.map(({date,planTokens})=>({label:chartDate(date,intl),values:{planTokens}}))}
+      series={[{key:'planTokens',name:copy('Token từ gói'),color:'primary'}]}
+      axisFormat={value=>compact.format(value)}
+      action={<strong className="agent-usage-total">{copy('Tổng token từ gói')} · {number.format(total)}</strong>}/>
+    <p className="dim agent-usage-note">{copy('Biểu đồ ghi nhận từ khi cập nhật. Số liệu tính theo thời điểm trừ hạn mức gói.')}</p>
+  </>;
 }
